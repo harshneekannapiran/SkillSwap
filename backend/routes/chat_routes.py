@@ -10,6 +10,39 @@ from models.message import Message
 from models.user import User
 
 
+@chat_bp.post("/start/<int:other_user_id>")
+@jwt_required()
+def start_conversation(other_user_id: int):
+    try:
+        user_id = get_jwt_identity()
+        other_user = User.query.get_or_404(other_user_id)
+        
+        # Check if conversation already exists
+        existing_msg = Message.query.filter(
+            or_(
+                (Message.sender_id == user_id) & (Message.receiver_id == other_user_id),
+                (Message.sender_id == other_user_id) & (Message.receiver_id == user_id)
+            )
+        ).first()
+        
+        if existing_msg:
+            return jsonify({"message": "Conversation already exists"}), HTTPStatus.OK
+        
+        # Create initial message
+        welcome_msg = Message(
+            sender_id=user_id,
+            receiver_id=other_user_id,
+            content="Hi! I'd like to connect with you."
+        )
+        db.session.add(welcome_msg)
+        db.session.commit()
+        
+        return jsonify({"message": "Conversation started successfully"}), HTTPStatus.CREATED
+    except Exception as e:
+        print(f"Error in start_conversation: {e}")
+        return jsonify({"message": "Failed to start conversation"}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
 @chat_bp.get("/conversations")
 @jwt_required()
 def list_conversations():

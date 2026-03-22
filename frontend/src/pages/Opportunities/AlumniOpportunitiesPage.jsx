@@ -5,6 +5,7 @@ export function AlumniOpportunitiesPage() {
   const [opportunities, setOpportunities] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [selectedOpportunity, setSelectedOpportunity] = useState(null)
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -165,44 +166,73 @@ export function AlumniOpportunitiesPage() {
       {/* Opportunities List */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {opportunities.map(opportunity => (
-          <div key={opportunity.id} className="bg-card rounded-lg border border-border p-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-text-primary mb-2">{opportunity.title}</h3>
-              <p className="text-text-secondary mb-2">{opportunity.company}</p>
+          <div 
+            key={opportunity.id} 
+            className="bg-card rounded-lg border border-border p-6 cursor-pointer hover:bg-muted/20 transition-all duration-200 transform hover:scale-105"
+            onClick={() => setSelectedOpportunity(opportunity)}
+          >
+            <h3 className="text-lg font-semibold text-text-primary mb-2">{opportunity.title}</h3>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-secondary">{opportunity.company}</span>
               {opportunity.location && (
-                <p className="text-sm text-text-secondary mb-2">📍 {opportunity.location}</p>
+                <span className="text-xs text-text-secondary">📍 {opportunity.location}</span>
               )}
-              <p className="text-xs text-text-secondary">
-                Posted: {new Date(opportunity.created_at).toLocaleDateString()}
-              </p>
             </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Opportunity Details Modal */}
+      {selectedOpportunity && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setSelectedOpportunity(null)}
+        >
+          <div 
+            className="bg-card rounded-xl p-6 max-w-lg w-full shadow-2xl border border-border"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-semibold text-text-primary mb-2">{selectedOpportunity.title}</h3>
+            <p className="text-text-secondary mb-2">{selectedOpportunity.company}</p>
+            {selectedOpportunity.location && (
+              <p className="text-sm text-text-secondary mb-2">📍 {selectedOpportunity.location}</p>
+            )}
+            <p className="text-xs text-text-secondary mb-4">
+              Posted: {new Date(selectedOpportunity.created_at).toLocaleDateString()}
+            </p>
             
-            {opportunity.description && (
-              <p className="text-text-secondary mb-4 line-clamp-3">{opportunity.description}</p>
+            {selectedOpportunity.description && (
+              <p className="text-text-secondary mb-6 leading-relaxed">{selectedOpportunity.description}</p>
             )}
             
-            {opportunity.link && (
+            {selectedOpportunity.link && (
               <a
-                href={opportunity.link}
+                href={selectedOpportunity.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-sm text-primary hover:underline mb-4"
+                className="block text-sm text-primary hover:underline mb-6"
               >
                 View Application Link
               </a>
             )}
             
-            <div className="flex gap-2">
+            <div className="flex gap-3 justify-end">
               <button
-                onClick={() => handleDelete(opportunity.id)}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                onClick={() => handleDelete(selectedOpportunity.id)}
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
               >
-                Delete
+                🗑️
+              </button>
+              <button
+                onClick={() => setSelectedOpportunity(null)}
+                className="px-4 py-2 bg-background text-text-primary rounded-lg hover:bg-muted transition-colors border border-border"
+              >
+                Close
               </button>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       {opportunities.length === 0 && !showAddForm && (
         <div className="text-center py-10">

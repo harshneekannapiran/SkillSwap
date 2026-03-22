@@ -5,6 +5,7 @@ export function AlumniEventsPage() {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState(null)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -211,60 +212,91 @@ export function AlumniEventsPage() {
       {/* Events List */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {events.map(event => (
-          <div key={event.id} className="bg-card rounded-lg border border-border p-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-text-primary mb-2">{event.title}</h3>
-              <p className="text-sm text-text-secondary mb-2">
+          <div 
+            key={event.id} 
+            className="bg-card rounded-lg border border-border p-6 cursor-pointer hover:bg-muted/20 transition-all duration-200 transform hover:scale-105"
+            onClick={() => setSelectedEvent(event)}
+          >
+            <h3 className="text-lg font-semibold text-text-primary mb-2">{event.title}</h3>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-secondary">
                 📅 {new Date(event.event_time).toLocaleDateString()}
-              </p>
-              <p className="text-sm text-text-secondary mb-2">
-                🕐 {new Date(event.event_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </p>
-              {event.location && (
-                <p className="text-sm text-text-secondary mb-2">📍 {event.location}</p>
-              )}
+              </span>
               <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
                 {event.event_type.replace('_', ' ')}
               </span>
             </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Event Details Modal */}
+      {selectedEvent && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setSelectedEvent(null)}
+        >
+          <div 
+            className="bg-card rounded-xl p-6 max-w-lg w-full shadow-2xl border border-border"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-semibold text-text-primary mb-2">{selectedEvent.title}</h3>
+            <p className="text-sm text-text-secondary mb-2">
+              📅 {new Date(selectedEvent.event_time).toLocaleDateString()}
+            </p>
+            <p className="text-sm text-text-secondary mb-2">
+              🕐 {new Date(selectedEvent.event_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            {selectedEvent.location && (
+              <p className="text-sm text-text-secondary mb-2">📍 {selectedEvent.location}</p>
+            )}
+            <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-sm mb-4">
+              {selectedEvent.event_type.replace('_', ' ')}
+            </span>
             
-            {event.description && (
-              <p className="text-text-secondary mb-4 line-clamp-3">{event.description}</p>
+            {selectedEvent.description && (
+              <p className="text-text-secondary mb-6 leading-relaxed">{selectedEvent.description}</p>
             )}
             
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-6">
               <span className="text-sm text-text-secondary">
-                {event.duration_minutes} min
+                {selectedEvent.duration_minutes} min
               </span>
-              {event.max_participants && (
+              {selectedEvent.max_participants && (
                 <span className="text-sm text-text-secondary">
-                  Max: {event.max_participants}
+                  Max: {selectedEvent.max_participants}
                 </span>
               )}
             </div>
             
-            {event.meeting_link && (
+            {selectedEvent.meeting_link && (
               <a
-                href={event.meeting_link}
+                href={selectedEvent.meeting_link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-sm text-primary hover:underline mb-4"
+                className="block text-sm text-primary hover:underline mb-6"
               >
                 Join Meeting
               </a>
             )}
             
-            <div className="flex gap-2">
+            <div className="flex gap-3 justify-end">
               <button
-                onClick={() => handleDelete(event.id)}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                onClick={() => handleDelete(selectedEvent.id)}
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
               >
-                Delete
+                🗑️
+              </button>
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="px-4 py-2 bg-background text-text-primary rounded-lg hover:bg-muted transition-colors border border-border"
+              >
+                Close
               </button>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       {events.length === 0 && !showAddForm && (
         <div className="text-center py-10">

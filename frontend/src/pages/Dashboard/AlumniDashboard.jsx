@@ -99,10 +99,20 @@ export function AlumniDashboard() {
   const handleDeleteEvent = async (eventId) => {
     try {
       await apiClient.delete(`/api/events/${eventId}`)
-      alert('Event deleted successfully!')
+      // Refresh data
       window.location.reload()
     } catch (error) {
       console.error('Failed to delete event:', error)
+      alert('Failed to delete event')
+    }
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800'
+      case 'accepted': return 'bg-green-100 text-green-800'
+      case 'rejected': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -152,7 +162,7 @@ export function AlumniDashboard() {
         <DashboardCard
           label="Events Created"
           value={loading ? '...' : stats.eventsCreated}
-          description="Workshops and sessions"
+          description="Events you have hosted"
         />
       </div>
 
@@ -162,42 +172,37 @@ export function AlumniDashboard() {
         <div className="space-y-4">
           {mentorshipRequests.map(request => (
             <div key={request.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
-                  {request.student_name?.charAt(0)}
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+                    {request.student_name?.charAt(0) || 'S'}
+                  </div>
+                  <div>
+                    <p className="font-medium text-text-primary">{request.student_name}</p>
+                    <p className="text-sm text-text-secondary">{request.topic}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-text-primary">{request.student_name}</p>
-                  <p className="text-sm text-text-secondary">{request.topic}</p>
-                  <p className="text-sm text-text-secondary">{request.message}</p>
-                </div>
+                <p className="text-text-secondary text-sm">{request.message}</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(request.status)}`}>
+                  {request.status}
+                </span>
                 {request.status === 'pending' && (
-                  <>
+                  <div className="flex gap-2">
                     <button
                       onClick={() => handleAcceptRequest(request.id)}
-                      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                      className="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
                     >
                       Accept
                     </button>
                     <button
                       onClick={() => handleRejectRequest(request.id)}
-                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                      className="px-3 py-1 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm"
                     >
                       Reject
                     </button>
-                  </>
-                )}
-                {request.status === 'accepted' && (
-                  <span className="px-4 py-2 bg-green-100 text-green-800 rounded-lg">
-                    Accepted
-                  </span>
-                )}
-                {request.status === 'rejected' && (
-                  <span className="px-4 py-2 bg-red-100 text-red-800 rounded-lg">
-                    Rejected
-                  </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -211,14 +216,16 @@ export function AlumniDashboard() {
         <div className="space-y-4">
           {skillsOffered.map(skill => (
             <div key={skill.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-              <div>
+              <div className="flex-1">
                 <p className="font-medium text-text-primary">{skill.name}</p>
                 <p className="text-sm text-text-secondary">{skill.category}</p>
-                <p className="text-sm text-text-secondary">{skill.description}</p>
               </div>
-              <span className="px-4 py-2 bg-primary text-white rounded-lg">
-                {skill.level}
-              </span>
+              <button
+                onClick={() => handleDeleteSkill(skill.id)}
+                className="px-3 py-1 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm"
+              >
+                Delete
+              </button>
             </div>
           ))}
         </div>
@@ -230,14 +237,14 @@ export function AlumniDashboard() {
         <div className="space-y-4">
           {opportunities.map(opportunity => (
             <div key={opportunity.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-              <div>
+              <div className="flex-1">
                 <p className="font-medium text-text-primary">{opportunity.title}</p>
                 <p className="text-sm text-text-secondary">{opportunity.company}</p>
                 <p className="text-sm text-text-secondary">{opportunity.location}</p>
               </div>
               <button
                 onClick={() => handleDeleteOpportunity(opportunity.id)}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                className="px-3 py-1 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm"
               >
                 Delete
               </button>
@@ -252,14 +259,14 @@ export function AlumniDashboard() {
         <div className="space-y-4">
           {events.map(event => (
             <div key={event.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-              <div>
+              <div className="flex-1">
                 <p className="font-medium text-text-primary">{event.title}</p>
                 <p className="text-sm text-text-secondary">{new Date(event.event_time).toLocaleDateString()}</p>
                 <p className="text-sm text-text-secondary">{event.location}</p>
               </div>
               <button
                 onClick={() => handleDeleteEvent(event.id)}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                className="px-3 py-1 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm"
               >
                 Delete
               </button>

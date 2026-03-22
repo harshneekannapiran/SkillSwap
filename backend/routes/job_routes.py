@@ -2,10 +2,12 @@ from http import HTTPStatus
 
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
+from sqlalchemy import select
 
 from . import job_bp
 from models import db
 from models.job import Job
+from models.job_application import JobApplication
 from models.user import User
 
 
@@ -22,6 +24,26 @@ def list_my_jobs():
     user_id = get_jwt_identity()
     jobs = Job.query.filter_by(posted_by_id=user_id).order_by(Job.created_at.desc()).all()
     return jsonify([j.to_dict() for j in jobs])
+
+
+@job_bp.get("/applications")
+@jwt_required()
+def list_job_applications():
+    user_id = get_jwt_identity()
+    user = User.query.get_or_404(user_id)
+    
+    if user.role == "alumni":
+        # Get applications for jobs I posted
+        applications = db.session.execute(
+            select(JobApplication)
+            .join(Job)
+            .filter(Job.posted_by_id == user_id)
+        ).scalars().all()
+    else:
+        # Get applications I made
+        applications = JobApplication.query.filter_by(applicant_id=user_id).all()
+    
+    return jsonify([app.to_dict() for app in applications])
 
 
 @job_bp.post("")
@@ -83,8 +105,65 @@ def apply_job():
     if not job_id:
         return jsonify({"message": "job_id is required"}), HTTPStatus.BAD_REQUEST
 
-    # For now, just return success - will implement applications table later
-    return jsonify({"message": "Application submitted successfully"}), HTTPStatus.CREATED
+    # Check if job exists
+    job = Job.query.get(job_id)
+    if not job:
+        return jsonify({"message": "Job not found"}), HTTPStatus.NOT_FOUND
+
+    # Check if already applied
+    existing_application = JobApplication.query.filter_by(
+        job_id=job_id, 
+        applicant_id=user_id
+    ).first()
+    
+    if existing_application:
+        return jsonify({"message": "Already applied to this job"}), HTTPStatus.CONFLICT
+
+    # Create application
+    application = JobApplication(
+        job_id=job_id,
+        applicant_id=user_id,
+        cover_letter=data.get("cover_letter", ""),
+        resume_url=data.get("resume_url", "")
+    )
+    
+    db.session.add(application)
+    db.session.commit()
+
+    return jsonify(application.to_dict()), HTTPStatus.CREATED
+
+
+@job_bp.put("/applications/<int:application_id>/status")
+@jwt_required()
+def update_application_status(application_id):
+    user_id = get_jwt_identity()
+    user = User.query.get_or_404(user_id)
+    
+    if user.role != "alumni":
+        return jsonify({"message": "Only alumni can update application status"}), HTTPStatus.FORBIDDEN
+
+    data = request.get_json() or {}
+    status = data.get("status")
+    
+    if not status or status not in ["applied", "reviewed", "accepted", "rejected"]:
+        return jsonify({"message": "Invalid status"}), HTTPStatus.BAD_REQUEST
+
+    application = db.session.execute(
+        select(JobApplication)
+        .join(Job)
+        .filter(
+            JobApplication.id == application_id,
+            Job.posted_by_id == user_id
+        )
+    ).scalar_one_or_none()
+
+    if not application:
+        return jsonify({"message": "Application not found"}), HTTPStatus.NOT_FOUND
+
+    application.status = status
+    db.session.commit()
+
+    return jsonify(application.to_dict())
 
 
 @job_bp.delete("/<int:job_id>")

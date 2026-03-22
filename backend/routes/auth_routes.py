@@ -39,7 +39,7 @@ def register():
     db.session.add(user)
     db.session.commit()
 
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
 
     return (
         jsonify(
@@ -69,7 +69,7 @@ def login():
     if not user or not user.check_password(password):
         return jsonify({"message": "Invalid credentials"}), HTTPStatus.UNAUTHORIZED
 
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
 
     return jsonify({"access_token": access_token, "user": user.to_dict()})
 

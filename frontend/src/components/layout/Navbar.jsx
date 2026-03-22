@@ -103,7 +103,7 @@ export function Navbar() {
           <NavLink
             to="/chat"
             className={({ isActive }) =>
-              `${navLinkBase} ${isActive ? 'text-primary' : ''}`
+              `${navLinkBase} ${isActive ? 'text-primary bg-primary/10' : ''} font-medium`
             }
           >
             Chat
@@ -187,13 +187,6 @@ export function Navbar() {
                       onClick={() => setShowProfile(false)}
                     >
                       View Profile
-                    </Link>
-                    <Link
-                      to="/settings"
-                      className="block w-full text-left px-3 py-2 text-sm text-text-secondary hover:text-primary hover:bg-background rounded-lg transition-colors"
-                      onClick={() => setShowProfile(false)}
-                    >
-                      Settings
                     </Link>
                     <button
                       onClick={handleLogout}

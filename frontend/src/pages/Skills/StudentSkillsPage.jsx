@@ -30,11 +30,18 @@ export function StudentSkillsPage() {
 
   const handleRequestSkill = async (skillId, skillName) => {
     try {
-      // For now, just show an alert - will implement skill requests later
+      await apiClient.post('/api/skills/requests', {
+        skill_id: skillId,
+        message: `I would like to learn ${skillName} from your experience.`
+      })
       alert(`Skill request for "${skillName}" sent successfully!`)
     } catch (error) {
       console.error('Failed to request skill:', error)
-      alert('Failed to send skill request')
+      if (error.response?.status === 409) {
+        alert('You have already requested this skill.')
+      } else {
+        alert('Failed to send skill request')
+      }
     }
   }
 

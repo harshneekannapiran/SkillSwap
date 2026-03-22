@@ -2,10 +2,12 @@ from http import HTTPStatus
 
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
+from sqlalchemy import select
 
 from . import event_bp
 from models import db
 from models.event import Event
+from models.event_registration import EventRegistration
 from models.user import User
 
 
@@ -39,10 +41,34 @@ def list_my_events():
     return jsonify([e.to_dict() for e in events])
 
 
+@event_bp.get("/registrations")
+@jwt_required()
+def list_event_registrations():
+    user_id = get_jwt_identity()
+    user = User.query.get_or_404(user_id)
+    
+    if user.role == "alumni":
+        # Get registrations for events I host
+        registrations = db.session.execute(
+            select(EventRegistration)
+            .join(Event)
+            .filter(Event.host_id == user_id)
+        ).scalars().all()
+    else:
+        # Get registrations I made
+        registrations = EventRegistration.query.filter_by(attendee_id=user_id).all()
+    
+    return jsonify([reg.to_dict() for reg in registrations])
+
+
 @event_bp.post("")
 @jwt_required()
 def create_event():
     user_id = get_jwt_identity()
+    user = User.query.get_or_404(user_id)
+    if user.role != "alumni":
+        return jsonify({"message": "Only alumni can create events"}), HTTPStatus.FORBIDDEN
+
     data = request.get_json() or {}
     
     title = data.get("title")
@@ -98,8 +124,70 @@ def register_event():
     if not event_id:
         return jsonify({"message": "event_id is required"}), HTTPStatus.BAD_REQUEST
 
-    # For now, just return success - will implement registrations table later
-    return jsonify({"message": "Successfully registered for event"}), HTTPStatus.CREATED
+    # Check if event exists
+    event = Event.query.get(event_id)
+    if not event:
+        return jsonify({"message": "Event not found"}), HTTPStatus.NOT_FOUND
+
+    # Check if already registered
+    existing_registration = EventRegistration.query.filter_by(
+        event_id=event_id, 
+        attendee_id=user_id
+    ).first()
+    
+    if existing_registration:
+        return jsonify({"message": "Already registered for this event"}), HTTPStatus.CONFLICT
+
+    # Check if event is full
+    if event.max_participants:
+        current_registrations = EventRegistration.query.filter_by(event_id=event_id).count()
+        if current_registrations >= event.max_participants:
+            return jsonify({"message": "Event is full"}), HTTPStatus.CONFLICT
+
+    # Create registration
+    registration = EventRegistration(
+        event_id=event_id,
+        attendee_id=user_id,
+        notes=data.get("notes", "")
+    )
+    
+    db.session.add(registration)
+    db.session.commit()
+
+    return jsonify(registration.to_dict()), HTTPStatus.CREATED
+
+
+@event_bp.put("/registrations/<int:registration_id>/status")
+@jwt_required()
+def update_registration_status(registration_id):
+    user_id = get_jwt_identity()
+    user = User.query.get_or_404(user_id)
+    
+    if user.role != "alumni":
+        return jsonify({"message": "Only alumni can update registration status"}), HTTPStatus.FORBIDDEN
+
+    data = request.get_json() or {}
+    status = data.get("status")
+    
+    if not status or status not in ["registered", "attended", "cancelled"]:
+        return jsonify({"message": "Invalid status"}), HTTPStatus.BAD_REQUEST
+
+    registration = db.session.execute(
+        select(EventRegistration)
+        .join(Event)
+        .filter(
+            EventRegistration.id == registration_id,
+            Event.host_id == user_id
+        )
+    ).scalar_one_or_none()
+
+    if not registration:
+        return jsonify({"message": "Registration not found"}), HTTPStatus.NOT_FOUND
+
+    registration.status = status
+    db.session.commit()
+
+    return jsonify(registration.to_dict())
 
 
 @event_bp.delete("/<int:event_id>")

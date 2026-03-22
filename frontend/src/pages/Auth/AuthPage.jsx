@@ -80,7 +80,7 @@ export function AuthPage() {
         </div>
 
         {/* Form Container */}
-        <div className="rounded-2xl border border-border bg-card/90 backdrop-blur-sm p-5 shadow-xl max-w-sm mx-auto">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-xl max-w-sm mx-auto">
           {/* Toggle Buttons */}
           <div className="flex justify-center mb-6">
             <button
@@ -118,7 +118,7 @@ export function AuthPage() {
                   value={form.name}
                   onChange={handleChange}
                   required
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none ring-primary/30 focus:bg-card focus:ring-2"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none ring-primary/30 focus:ring-2 focus:border-primary"
                   placeholder="John Doe"
                 />
               </div>
@@ -134,7 +134,7 @@ export function AuthPage() {
                 value={form.email}
                 onChange={handleChange}
                 required
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none ring-primary/30 focus:bg-card focus:ring-2"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none ring-primary/30 focus:ring-2 focus:border-primary"
                 placeholder="john@example.com"
               />
             </div>
@@ -181,18 +181,18 @@ export function AuthPage() {
                 value={form.password}
                 onChange={handleChange}
                 required
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none ring-primary/30 focus:bg-card focus:ring-2"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none ring-primary/30 focus:ring-2 focus:border-primary"
                 placeholder="••••••••"
               />
             </div>
 
             {error && (
-              <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              <p className="text-sm text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
                 {error}
               </p>
             )}
             {success && (
-              <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+              <p className="text-sm text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
                 {success}
               </p>
             )}

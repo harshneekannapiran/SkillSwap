@@ -49,30 +49,30 @@ export function HomePage() {
 
             {/* Features Preview */}
             <div className="mt-12 grid gap-6 md:grid-cols-3">
-              <div className="text-center p-4 rounded-lg bg-white/60 backdrop-blur-sm border border-white/20">
+              <div className="text-center p-4 rounded-lg bg-card backdrop-blur-sm border border-border">
                 <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
                   <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H9m0 0l3-3m0 0l-3 3" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H9m0 0l3-3m0 0l-3 3" />
                   </svg>
                 </div>
                 <h3 className="text-base font-semibold text-text-primary mb-2">Find Mentors</h3>
                 <p className="text-sm text-text-secondary">Connect with alumni for 1:1 guidance and career advice</p>
               </div>
               
-              <div className="text-center p-4 rounded-lg bg-white/60 backdrop-blur-sm border border-white/20">
+              <div className="text-center p-4 rounded-lg bg-card backdrop-blur-sm border border-border">
                 <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
                   <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.071 0l.707-.707M12 3a4 4 0 00-4 4v1" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.071 0l.707-.707M12 3a4 4 0 00-4 4v1" />
                   </svg>
                 </div>
                 <h3 className="text-base font-semibold text-text-primary mb-2">Share Skills</h3>
                 <p className="text-sm text-text-secondary">Offer your expertise and help others grow</p>
               </div>
               
-              <div className="text-center p-4 rounded-lg bg-white/60 backdrop-blur-sm border border-white/20">
+              <div className="text-center p-4 rounded-lg bg-card backdrop-blur-sm border border-border">
                 <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
                   <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A7.977 7.977 0 0112 15.901c0 2.714-.712 5.247-2.037 6.782a7.977 7.977 0 01-6.782 2.037C3.712 14.632 3 12.155 3 9.155a7.977 7.977 0 012.037 6.782c1.325 1.535 2.037 3.068 2.037 6.746 0 5.247-.712 6.782-2.037l1.726-1.726a1 1 0 01.707-.293z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A7.977 7.977 0 0112 15.901c0 2.714-.712 5.247-2.037 6.782a7.977 7.977 0 01-6.782 2.037C3.712 14.632 3 12.155 3 9.155a7.977 7.977 0 012.037 6.782c1.325 1.535 2.037 3.068 2.037 6.746 0 5.247-.712 6.782-2.037l1.726-1.726a1 1 0 01.707-.293z" />
                   </svg>
                 </div>
                 <h3 className="text-base font-semibold text-text-primary mb-2">Grow Career</h3>

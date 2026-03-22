@@ -31,7 +31,7 @@ class Event(db.Model):
             "description": self.description,
             "event_type": self.event_type,
             "location": self.location,
-            "event_time": self.event_time.isoformat() if self.event_time else self.starts_at.isoformat() if self.starts_at else None,
+            "event_time": self.event_time.isoformat() if self.event_time else None,
             "duration_minutes": self.duration_minutes,
             "meeting_link": self.meeting_link,
             "max_participants": self.max_participants,

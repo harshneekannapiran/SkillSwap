@@ -3,8 +3,10 @@ import { apiClient } from '../../services/apiClient.js'
 
 export function AlumniSkillsPage() {
   const [skills, setSkills] = useState([])
+  const [skillRequests, setSkillRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [selectedSkill, setSelectedSkill] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -14,6 +16,7 @@ export function AlumniSkillsPage() {
 
   useEffect(() => {
     fetchMySkills()
+    fetchSkillRequests()
   }, [])
 
   const fetchMySkills = async () => {
@@ -24,6 +27,15 @@ export function AlumniSkillsPage() {
       console.error('Failed to fetch skills:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSkillRequests = async () => {
+    try {
+      const response = await apiClient.get('/api/skills/requests')
+      setSkillRequests(response.data.received || [])
+    } catch (error) {
+      console.error('Failed to fetch skill requests:', error)
     }
   }
 
@@ -52,13 +64,23 @@ export function AlumniSkillsPage() {
     }
   }
 
-  const handleEdit = async (skillId, data) => {
+  const handleAcceptRequest = async (requestId) => {
     try {
-      await apiClient.put(`/api/skills/${skillId}`, data)
-      fetchMySkills()
+      await apiClient.put(`/api/skills/requests/${requestId}/accept`)
+      fetchSkillRequests()
     } catch (error) {
-      console.error('Failed to update skill:', error)
-      alert('Failed to update skill')
+      console.error('Failed to accept request:', error)
+      alert('Failed to accept request')
+    }
+  }
+
+  const handleRejectRequest = async (requestId) => {
+    try {
+      await apiClient.put(`/api/skills/requests/${requestId}/reject`)
+      fetchSkillRequests()
+    } catch (error) {
+      console.error('Failed to reject request:', error)
+      alert('Failed to reject request')
     }
   }
 
@@ -80,6 +102,59 @@ export function AlumniSkillsPage() {
           Add New Skill
         </button>
       </div>
+
+      {/* Skill Requests */}
+      {skillRequests.length > 0 && (
+        <div className="bg-card rounded-lg border border-border p-6">
+          <h2 className="text-xl font-semibold text-text-primary mb-4">Skill Requests</h2>
+          <div className="space-y-4">
+            {skillRequests.map(request => (
+              <div key={request.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+                    {request.requester_name?.charAt(0) || 'S'}
+                  </div>
+                  <div>
+                    <p className="font-medium text-text-primary">{request.requester_name}</p>
+                    <p className="text-sm text-text-secondary">Wants to learn: {request.skill_name}</p>
+                    {request.message && (
+                      <p className="text-sm text-text-secondary mt-1">"{request.message}"</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {request.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => handleAcceptRequest(request.id)}
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleRejectRequest(request.id)}
+                        className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  {request.status === 'accepted' && (
+                    <span className="px-4 py-2 bg-green-100 text-green-800 rounded-lg">
+                      Accepted
+                    </span>
+                  )}
+                  {request.status === 'rejected' && (
+                    <span className="px-4 py-2 bg-red-100 text-red-800 rounded-lg">
+                      Rejected
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Add Skill Form */}
       {showAddForm && (
@@ -159,30 +234,61 @@ export function AlumniSkillsPage() {
       {/* Skills List */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {skills.map(skill => (
-          <div key={skill.id} className="bg-card rounded-lg border border-border p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-text-primary">{skill.name}</h3>
-                <p className="text-sm text-text-secondary">{skill.category}</p>
-              </div>
+          <div 
+            key={skill.id} 
+            className="bg-card rounded-lg border border-border p-6 cursor-pointer hover:bg-muted/20 transition-all duration-200 transform hover:scale-105"
+            onClick={() => setSelectedSkill(skill)}
+          >
+            <h3 className="text-lg font-semibold text-text-primary mb-2">{skill.name}</h3>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-secondary">{skill.category}</span>
               <span className="px-3 py-1 bg-primary text-white text-sm rounded-full">
                 {skill.level}
               </span>
             </div>
-            
-            <p className="text-text-secondary mb-4">{skill.description}</p>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleDelete(skill.id)}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-              >
-                Delete
-              </button>
-            </div>
           </div>
         ))}
       </div>
+
+      {/* Skill Details Modal */}
+      {selectedSkill && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setSelectedSkill(null)}
+        >
+          <div 
+            className="bg-card rounded-xl p-6 max-w-lg w-full shadow-2xl border border-border"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-text-primary">{selectedSkill.name}</h3>
+                <p className="text-sm text-text-secondary">{selectedSkill.category}</p>
+              </div>
+              <span className="px-3 py-1 bg-primary text-white text-sm rounded-full">
+                {selectedSkill.level}
+              </span>
+            </div>
+            
+            <p className="text-text-secondary mb-6 leading-relaxed">{selectedSkill.description}</p>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => handleDelete(selectedSkill.id)}
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+              >
+                🗑️
+              </button>
+              <button
+                onClick={() => setSelectedSkill(null)}
+                className="px-4 py-2 bg-background text-text-primary rounded-lg hover:bg-muted transition-colors border border-border"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {skills.length === 0 && !showAddForm && (
         <div className="text-center py-10">

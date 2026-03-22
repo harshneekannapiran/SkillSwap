@@ -2,12 +2,14 @@ from http import HTTPStatus
 
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
+from sqlalchemy import select
 
 from . import mentorship_bp
 from models import db
 from models.mentorship_request import MentorshipRequest
 from models.mentorship_session import MentorshipSession
 from models.user import User
+from models.message import Message
 
 
 @mentorship_bp.get("/mentors")
@@ -34,9 +36,22 @@ def list_requests():
             db.select(MentorshipRequest).where(MentorshipRequest.mentor_id == user_id)
         ).scalars().all()
         
+        # Get actual student names for received requests
+        received_data = []
+        for r in received:
+            student = User.query.get(r.student_id)
+            student_name = student.name if student else f"Student {r.student_id}"
+            received_data.append({
+                "id": r.id, 
+                "topic": r.topic, 
+                "status": r.status, 
+                "created_at": r.created_at.isoformat() if r.created_at else None, 
+                "student_name": student_name
+            })
+        
         return jsonify({
             "sent": [{"id": r.id, "topic": r.topic, "status": r.status, "created_at": r.created_at.isoformat() if r.created_at else None} for r in sent],
-            "received": [{"id": r.id, "topic": r.topic, "status": r.status, "created_at": r.created_at.isoformat() if r.created_at else None, "student_name": f"Student {r.student_id}"} for r in received]
+            "received": received_data
         })
     except Exception as e:
         print(f"Error in list_requests: {e}")
@@ -79,6 +94,15 @@ def accept_request(request_id):
         request_obj.status = "accepted"
         db.session.commit()
         
+        # Create initial chat message to start conversation
+        welcome_msg = Message(
+            sender_id=user_id,
+            receiver_id=request_obj.student_id,
+            content="Hi! I've accepted your mentorship request. I'm excited to help you with your goals. Let's start chatting!"
+        )
+        db.session.add(welcome_msg)
+        db.session.commit()
+        
         return jsonify(request_obj.to_dict())
     except Exception as e:
         print(f"Error in accept_request: {e}")
@@ -102,34 +126,6 @@ def reject_request(request_id):
     except Exception as e:
         print(f"Error in reject_request: {e}")
         return jsonify({"message": "Failed to reject request"}), 500
-
-
-@mentorship_bp.put("/requests/<int:request_id>/accept")
-@jwt_required()
-def accept_request(request_id: int):
-    user_id = get_jwt_identity()
-    req = MentorshipRequest.query.get_or_404(request_id)
-
-    if req.mentor_id != user_id:
-        return jsonify({"message": "Not allowed"}), HTTPStatus.FORBIDDEN
-
-    req.status = "accepted"
-    db.session.commit()
-    return jsonify(req.to_dict())
-
-
-@mentorship_bp.put("/requests/<int:request_id>/reject")
-@jwt_required()
-def reject_request(request_id: int):
-    user_id = get_jwt_identity()
-    req = MentorshipRequest.query.get_or_404(request_id)
-
-    if req.mentor_id != user_id:
-        return jsonify({"message": "Not allowed"}), HTTPStatus.FORBIDDEN
-
-    req.status = "rejected"
-    db.session.commit()
-    return jsonify(req.to_dict())
 
 
 # @mentorship_bp.get("/sessions")

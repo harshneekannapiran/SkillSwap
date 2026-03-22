@@ -103,15 +103,12 @@ export function AlumniMentorshipPage() {
                   </div>
                   <div>
                     <p className="font-medium text-text-primary">{request.student_name}</p>
-                    <p className="text-sm text-text-secondary">Topic: {request.topic}</p>
+                    <p className="text-sm text-text-secondary">{request.topic}</p>
                   </div>
                 </div>
-                <p className="text-text-secondary text-sm mb-2">{request.message}</p>
-                <p className="text-xs text-text-secondary">
-                  Requested: {new Date(request.created_at).toLocaleDateString()}
-                </p>
+                <p className="text-text-secondary text-sm">{request.message}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(request.status)}`}>
                   {request.status}
                 </span>
@@ -119,13 +116,13 @@ export function AlumniMentorshipPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleAcceptRequest(request.id)}
-                      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                      className="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
                     >
                       Accept
                     </button>
                     <button
                       onClick={() => handleRejectRequest(request.id)}
-                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                      className="px-3 py-1 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm"
                     >
                       Reject
                     </button>
