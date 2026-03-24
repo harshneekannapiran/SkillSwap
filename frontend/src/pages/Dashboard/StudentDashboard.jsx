@@ -23,44 +23,103 @@ export function StudentDashboard() {
     const fetchStudentData = async () => {
       try {
         const token = localStorage.getItem('skillswap_token')
-        if (!token) return
+        const userRaw = localStorage.getItem('skillswap_user')
+        const user = userRaw ? JSON.parse(userRaw) : null
+        
+        console.log('Fetching student dashboard data...')
+        console.log('Token exists:', !!token)
+        console.log('User:', user)
+
+        if (!token || !user) {
+          console.log('No token or user found, skipping dashboard fetch')
+          return
+        }
 
         // Fetch mentorship requests
-        const mentorshipRes = await apiClient.get('/api/mentorship/requests')
-        const pendingRequests = mentorshipRes.data.sent?.filter(r => r.status === 'pending').length || 0
-        const acceptedRequests = mentorshipRes.data.sent?.filter(r => r.status === 'accepted').length || 0
+        try {
+          const mentorshipRes = await apiClient.get('/api/mentorship/requests')
+          console.log('Mentorship requests response:', mentorshipRes.status, mentorshipRes.data)
+          const pendingRequests = mentorshipRes.data.sent?.filter(r => r.status === 'pending').length || 0
+          const acceptedRequests = mentorshipRes.data.sent?.filter(r => r.status === 'accepted').length || 0
+          
+          // Fetch skills requested
+          try {
+            const skillsRes = await apiClient.get('/api/skills/requests')
+            console.log('Skills requests response:', skillsRes.status, skillsRes.data)
+            const skillsRequested = skillsRes.data.sent?.filter(req => req.requester_id === user.id).length || 0
 
-        // Fetch skills requested
-        const skillsRes = await apiClient.get('/api/skills/requests')
-        const skillsRequested = skillsRes.data.filter(req => req.requester_id === user.id).length || 0
+            // Fetch mentors (recommended)
+            try {
+              const mentorsRes = await apiClient.get('/api/mentorship/mentors')
+              console.log('Mentors response:', mentorsRes.status, mentorsRes.data)
+              const mentors = mentorsRes.data.slice(0, 3) // Top 3 recommendations
 
-        // Fetch mentors (recommended)
-        const mentorsRes = await apiClient.get('/api/mentorship/mentors')
-        const mentors = mentorsRes.data.slice(0, 3) // Top 3 recommendations
+              // Fetch opportunities
+              try {
+                const jobsRes = await apiClient.get('/api/jobs')
+                console.log('Jobs response:', jobsRes.status, jobsRes.data)
+                const opportunities = jobsRes.data.slice(0, 5)
 
-        // Fetch opportunities
-        const jobsRes = await apiClient.get('/api/jobs')
-        const opportunities = jobsRes.data.slice(0, 5)
+                // Fetch events
+                try {
+                  const eventsRes = await apiClient.get('/api/events')
+                  console.log('Events response:', eventsRes.status, eventsRes.data)
+                  const events = eventsRes.data.slice(0, 3)
 
-        // Fetch events
-        const eventsRes = await apiClient.get('/api/events')
-        const events = eventsRes.data.slice(0, 3)
+                  console.log('All data fetched successfully!')
+                  console.log('Final stats:', {
+                    recommendedMentors: mentors.length,
+                    skillsRequested,
+                    pendingRequests,
+                    upcomingSessions: acceptedRequests,
+                    newOpportunities: opportunities.length,
+                    eventSuggestions: events.length
+                  })
 
-        setStats({
-          recommendedMentors: mentors.length,
-          skillsRequested,
-          pendingRequests,
-          upcomingSessions: acceptedRequests,
-          newOpportunities: opportunities.length,
-          eventSuggestions: events.length
-        })
+                  setStats({
+                    recommendedMentors: mentors.length,
+                    skillsRequested,
+                    pendingRequests,
+                    upcomingSessions: acceptedRequests,
+                    newOpportunities: opportunities.length,
+                    eventSuggestions: events.length
+                  })
 
-        setRecommendedMentors(mentors)
-        setUpcomingSessions(acceptedRequests)
-        setNewOpportunities(opportunities)
-        setEventSuggestions(events)
+                  setRecommendedMentors(mentors)
+                  setUpcomingSessions(acceptedRequests)
+                  setNewOpportunities(opportunities)
+                  setEventSuggestions(events)
+                } catch (eventsError) {
+                  console.error('Failed to fetch events:', eventsError)
+                  console.error('Events error details:', eventsError.response?.data || eventsError.message)
+                  setStats(prev => ({ ...prev, eventSuggestions: 0 }))
+                  setEventSuggestions([])
+                }
+              } catch (jobsError) {
+                console.error('Failed to fetch jobs:', jobsError)
+                console.error('Jobs error details:', jobsError.response?.data || jobsError.message)
+                setStats(prev => ({ ...prev, newOpportunities: 0 }))
+                setNewOpportunities([])
+              }
+            } catch (mentorsError) {
+              console.error('Failed to fetch mentors:', mentorsError)
+              console.error('Mentors error details:', mentorsError.response?.data || mentorsError.message)
+              setStats(prev => ({ ...prev, recommendedMentors: 0 }))
+              setRecommendedMentors([])
+            }
+          } catch (skillsError) {
+            console.error('Failed to fetch skills:', skillsError)
+            console.error('Skills error details:', skillsError.response?.data || skillsError.message)
+            setStats(prev => ({ ...prev, skillsRequested: 0 }))
+          }
+        } catch (mentorshipError) {
+          console.error('Failed to fetch mentorship requests:', mentorshipError)
+          console.error('Mentorship error details:', mentorshipError.response?.data || mentorshipError.message)
+          setStats(prev => ({ ...prev, pendingRequests: 0, upcomingSessions: 0 }))
+        }
       } catch (error) {
         console.error('Failed to fetch student dashboard data:', error)
+        console.error('General error details:', error.response?.data || error.message)
       } finally {
         setLoading(false)
       }
@@ -76,10 +135,28 @@ export function StudentDashboard() {
         topic: 'Career Guidance',
         message: 'I would like to learn from your experience.'
       })
-      // Refresh data
-      window.location.reload()
+      alert('Mentorship request sent successfully!')
+      // Refresh the data without page reload
+      const userRaw = localStorage.getItem('skillswap_user')
+      const user = userRaw ? JSON.parse(userRaw) : null
+      
+      // Fetch updated mentorship requests
+      const mentorshipRes = await apiClient.get('/api/mentorship/requests')
+      const pendingRequests = mentorshipRes.data.sent?.filter(r => r.status === 'pending').length || 0
+      const acceptedRequests = mentorshipRes.data.sent?.filter(r => r.status === 'accepted').length || 0
+      
+      // Update stats
+      setStats(prev => ({
+        ...prev,
+        pendingRequests,
+        upcomingSessions: acceptedRequests
+      }))
+      
+      // Remove the mentor from the recommended list since request was sent
+      setRecommendedMentors(prev => prev.filter(mentor => mentor.id !== mentorId))
     } catch (error) {
       console.error('Failed to request mentorship:', error)
+      alert('Failed to send mentorship request. Please try again.')
     }
   }
 
@@ -87,8 +164,18 @@ export function StudentDashboard() {
     try {
       await apiClient.post('/api/jobs/apply', { job_id: jobId })
       alert('Application submitted successfully!')
+      
+      // Remove the job from the list since application was sent
+      setNewOpportunities(prev => prev.filter(opportunity => opportunity.id !== jobId))
+      
+      // Update stats
+      setStats(prev => ({
+        ...prev,
+        newOpportunities: prev.newOpportunities - 1
+      }))
     } catch (error) {
       console.error('Failed to apply:', error)
+      alert('Failed to submit application. Please try again.')
     }
   }
 
@@ -96,8 +183,18 @@ export function StudentDashboard() {
     try {
       await apiClient.post('/api/events/register', { event_id: eventId })
       alert('Successfully registered for event!')
+      
+      // Remove the event from the list since registration was sent
+      setEventSuggestions(prev => prev.filter(event => event.id !== eventId))
+      
+      // Update stats
+      setStats(prev => ({
+        ...prev,
+        eventSuggestions: prev.eventSuggestions - 1
+      }))
     } catch (error) {
       console.error('Failed to join event:', error)
+      alert('Failed to register for event. Please try again.')
     }
   }
 
@@ -154,71 +251,101 @@ export function StudentDashboard() {
       {/* Recommended Mentors */}
       <div className="bg-card rounded-lg border border-border p-6">
         <h2 className="text-xl font-semibold text-text-primary mb-4">Recommended Mentors</h2>
-        <div className="space-y-4">
-          {recommendedMentors.map(mentor => (
-            <div key={mentor.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
-                  {mentor.name.charAt(0)}
-                </div>
-                <div>
-                  <p className="font-medium text-text-primary">{mentor.name}</p>
-                  <p className="text-sm text-text-secondary">{mentor.company}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => handleRequestMentorship(mentor.id)}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
-              >
-                Request Mentorship
-              </button>
+        {recommendedMentors.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">👥</span>
             </div>
-          ))}
-        </div>
+            <p className="text-text-secondary">No mentors available right now</p>
+            <p className="text-sm text-text-muted-foreground mt-2">Check back later for mentor recommendations</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {recommendedMentors.map(mentor => (
+              <div key={mentor.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+                    {mentor.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-medium text-text-primary">{mentor.name}</p>
+                    <p className="text-sm text-text-secondary">{mentor.company}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleRequestMentorship(mentor.id)}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                >
+                  Request Mentorship
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* New Opportunities */}
       <div className="bg-card rounded-lg border border-border p-6">
         <h2 className="text-xl font-semibold text-text-primary mb-4">New Opportunities</h2>
-        <div className="space-y-4">
-          {newOpportunities.map(opportunity => (
-            <div key={opportunity.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-              <div>
-                <p className="font-medium text-text-primary">{opportunity.title}</p>
-                <p className="text-sm text-text-secondary">{opportunity.company}</p>
-                <p className="text-sm text-text-secondary">{opportunity.location}</p>
-              </div>
-              <button
-                onClick={() => handleApplyToOpportunity(opportunity.id)}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
-              >
-                Apply
-              </button>
+        {newOpportunities.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">💼</span>
             </div>
-          ))}
-        </div>
+            <p className="text-text-secondary">No opportunities available right now</p>
+            <p className="text-sm text-text-muted-foreground mt-2">Check back later for new job postings</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {newOpportunities.map(opportunity => (
+              <div key={opportunity.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                <div>
+                  <p className="font-medium text-text-primary">{opportunity.title}</p>
+                  <p className="text-sm text-text-secondary">{opportunity.company}</p>
+                  <p className="text-sm text-text-secondary">{opportunity.location}</p>
+                </div>
+                <button
+                  onClick={() => handleApplyToOpportunity(opportunity.id)}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Event Suggestions */}
       <div className="bg-card rounded-lg border border-border p-6">
         <h2 className="text-xl font-semibold text-text-primary mb-4">Upcoming Events</h2>
-        <div className="space-y-4">
-          {eventSuggestions.map(event => (
-            <div key={event.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-              <div>
-                <p className="font-medium text-text-primary">{event.title}</p>
-                <p className="text-sm text-text-secondary">{new Date(event.event_time).toLocaleDateString()}</p>
-                <p className="text-sm text-text-secondary">{event.location}</p>
-              </div>
-              <button
-                onClick={() => handleJoinEvent(event.id)}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
-              >
-                Join Event
-              </button>
+        {eventSuggestions.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">📅</span>
             </div>
-          ))}
-        </div>
+            <p className="text-text-secondary">No events scheduled right now</p>
+            <p className="text-sm text-text-muted-foreground mt-2">Check back later for upcoming workshops and sessions</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {eventSuggestions.map(event => (
+              <div key={event.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                <div>
+                  <p className="font-medium text-text-primary">{event.title}</p>
+                  <p className="text-sm text-text-secondary">{new Date(event.event_time).toLocaleDateString()}</p>
+                  <p className="text-sm text-text-secondary">{event.location}</p>
+                </div>
+                <button
+                  onClick={() => handleJoinEvent(event.id)}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                >
+                  Join Event
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

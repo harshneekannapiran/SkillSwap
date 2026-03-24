@@ -61,6 +61,25 @@ def list_event_registrations():
     return jsonify([reg.to_dict() for reg in registrations])
 
 
+@event_bp.get("/my-registrations")
+@jwt_required()
+def list_my_event_registrations():
+    user_id = get_jwt_identity()
+    user = User.query.get_or_404(user_id)
+    
+    if user.role != "alumni":
+        return jsonify({"message": "Only alumni can view registrations"}), HTTPStatus.FORBIDDEN
+    
+    # Get registrations for events I host
+    registrations = db.session.execute(
+        select(EventRegistration)
+        .join(Event)
+        .filter(Event.host_id == user_id)
+    ).scalars().all()
+    
+    return jsonify([reg.to_dict() for reg in registrations])
+
+
 @event_bp.post("")
 @jwt_required()
 def create_event():

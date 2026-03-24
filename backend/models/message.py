@@ -11,7 +11,7 @@ class Message(db.Model):
     receiver_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     sender = db.relationship(
         "User", foreign_keys=[sender_id], backref=db.backref("sent_messages", lazy=True)

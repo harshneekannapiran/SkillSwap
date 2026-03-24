@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useTheme } from '../../contexts/ThemeContext.jsx'
+import { apiClient } from '../../services/apiClient.js'
 
 const navLinkBase =
   'text-sm font-medium text-text-secondary px-3 py-1 transition-colors hover:text-primary'
@@ -9,6 +10,7 @@ export function Navbar() {
   const [isAuthed, setIsAuthed] = useState(false)
   const [user, setUser] = useState(null)
   const [showProfile, setShowProfile] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const location = useLocation()
@@ -22,11 +24,33 @@ export function Navbar() {
       setUser(userData ? JSON.parse(userData) : null)
     }
 
+    const fetchUnreadMessages = async () => {
+      if (!isAuthed) return
+      
+      try {
+        const response = await apiClient.get('/api/chat/conversations')
+        const conversations = response.data || []
+        
+        // Count conversations with unread messages (simplified for now)
+        const unreadCount = conversations.filter(conv => {
+          // This is a simplified count - in a real app, you'd track actual read/unread status
+          return conv.last_message && conv.last_message.includes('new')
+        }).length
+        
+        setUnreadCount(unreadCount)
+      } catch (error) {
+        console.error('Failed to fetch unread messages:', error)
+        setUnreadCount(0)
+      }
+    }
+
     checkAuth()
+    fetchUnreadMessages()
 
     const handleStorage = (e) => {
       console.log('Storage event:', e)
       checkAuth()
+      fetchUnreadMessages()
     }
 
     window.addEventListener('storage', handleStorage)
@@ -36,7 +60,7 @@ export function Navbar() {
       window.removeEventListener('storage', handleStorage)
       window.removeEventListener('focus', checkAuth)
     }
-  }, [])
+  }, [isAuthed])
 
   const handleLogout = () => {
     localStorage.removeItem('skillswap_token')
@@ -103,10 +127,15 @@ export function Navbar() {
           <NavLink
             to="/chat"
             className={({ isActive }) =>
-              `${navLinkBase} ${isActive ? 'text-primary bg-primary/10' : ''} font-medium`
+              `${navLinkBase} ${isActive ? 'text-primary' : ''} font-medium relative`
             }
           >
             Chat
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </NavLink>
           <NavLink
             to="/profile"
@@ -116,6 +145,25 @@ export function Navbar() {
           >
             Profile
           </NavLink>
+          {user?.role === 'student' ? (
+            <NavLink
+              to="/my-applications"
+              className={({ isActive }) =>
+                `${navLinkBase} ${isActive ? 'text-primary' : ''}`
+              }
+            >
+              My Applications
+            </NavLink>
+          ) : user?.role === 'alumni' ? (
+            <NavLink
+              to="/view-applicants"
+              className={({ isActive }) =>
+                `${navLinkBase} ${isActive ? 'text-primary' : ''}`
+              }
+            >
+              Applicants
+            </NavLink>
+          ) : null}
           <NavLink
             to="/opportunities"
             className={({ isActive }) =>

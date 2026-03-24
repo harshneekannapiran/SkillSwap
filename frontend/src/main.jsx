@@ -13,6 +13,8 @@ import { ChatPage } from './pages/Chat/ChatPage.jsx'
 import { ProfilePage } from './pages/Profile/ProfilePage.jsx'
 import { OpportunitiesPage } from './pages/Opportunities/OpportunitiesPage.jsx'
 import { EventsPage } from './pages/Events/EventsPage.jsx'
+import { MyApplications } from './pages/Applications/MyApplications.jsx'
+import { ViewApplicants } from './pages/Applications/ViewApplicants.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -29,6 +31,8 @@ createRoot(document.getElementById('root')).render(
             <Route path="profile" element={<ProfilePage />} />
             <Route path="opportunities" element={<OpportunitiesPage />} />
             <Route path="events" element={<EventsPage />} />
+            <Route path="my-applications" element={<MyApplications />} />
+            <Route path="view-applicants" element={<ViewApplicants />} />
           </Route>
         </Routes>
       </ThemeProvider>

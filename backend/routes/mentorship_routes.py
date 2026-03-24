@@ -46,11 +46,26 @@ def list_requests():
                 "topic": r.topic, 
                 "status": r.status, 
                 "created_at": r.created_at.isoformat() if r.created_at else None, 
-                "student_name": student_name
+                "student_name": student_name,
+                "student_id": r.student_id
+            })
+        
+        # Get actual mentor names for sent requests
+        sent_data = []
+        for r in sent:
+            mentor = User.query.get(r.mentor_id)
+            mentor_name = mentor.name if mentor else f"Mentor {r.mentor_id}"
+            sent_data.append({
+                "id": r.id, 
+                "topic": r.topic, 
+                "status": r.status, 
+                "created_at": r.created_at.isoformat() if r.created_at else None, 
+                "mentor_name": mentor_name,
+                "mentor_id": r.mentor_id
             })
         
         return jsonify({
-            "sent": [{"id": r.id, "topic": r.topic, "status": r.status, "created_at": r.created_at.isoformat() if r.created_at else None} for r in sent],
+            "sent": sent_data,
             "received": received_data
         })
     except Exception as e:
@@ -109,6 +124,31 @@ def accept_request(request_id):
         return jsonify({"message": "Failed to accept request"}), 500
 
 
+@mentorship_bp.put("/requests/<int:request_id>")
+@jwt_required()
+def update_request(request_id):
+    try:
+        user_id = get_jwt_identity()
+        request_obj = MentorshipRequest.query.filter_by(id=request_id, mentor_id=user_id).first()
+        
+        if not request_obj:
+            return jsonify({"message": "Request not found"}), HTTPStatus.NOT_FOUND
+        
+        data = request.get_json() or {}
+        status = data.get("status")
+        
+        if status not in ["accepted", "rejected"]:
+            return jsonify({"message": "Invalid status"}), HTTPStatus.BAD_REQUEST
+        
+        request_obj.status = status
+        db.session.commit()
+        
+        return jsonify(request_obj.to_dict())
+    except Exception as e:
+        print(f"Error in update_request: {e}")
+        return jsonify({"message": "Failed to update request"}), 500
+
+
 @mentorship_bp.put("/requests/<int:request_id>/reject")
 @jwt_required()
 def reject_request(request_id):
@@ -128,14 +168,26 @@ def reject_request(request_id):
         return jsonify({"message": "Failed to reject request"}), 500
 
 
-# @mentorship_bp.get("/sessions")
-# @jwt_required()
-# def list_sessions():
-#     user_id = get_jwt_identity()
-#     sessions = MentorshipSession.query.join(MentorshipRequest).filter(
-#         (MentorshipRequest.student_id == user_id) | (MentorshipRequest.mentor_id == user_id)
-#     ).order_by(MentorshipSession.scheduled_time.desc()).all()
-#     return jsonify([s.to_dict() for s in sessions])
+@mentorship_bp.post("/sessions/<int:request_id>/complete")
+@jwt_required()
+def complete_session(request_id):
+    try:
+        user_id = get_jwt_identity()
+        request_obj = MentorshipRequest.query.filter_by(id=request_id, mentor_id=user_id).first()
+        
+        if not request_obj:
+            return jsonify({"message": "Request not found"}), HTTPStatus.NOT_FOUND
+        
+        if request_obj.status != "accepted":
+            return jsonify({"message": "Only accepted requests can be completed"}), HTTPStatus.BAD_REQUEST
+        
+        request_obj.status = "completed"
+        db.session.commit()
+        
+        return jsonify({"message": "Session marked as completed", "request": request_obj.to_dict()})
+    except Exception as e:
+        print(f"Error in complete_session: {e}")
+        return jsonify({"message": "Failed to complete session"}), 500
 
 
 # @mentorship_bp.post("/requests/<int:request_id>/schedule")

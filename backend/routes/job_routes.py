@@ -73,6 +73,53 @@ def create_job():
     return jsonify(job.to_dict()), HTTPStatus.CREATED
 
 
+@job_bp.get("/my-applications")
+@jwt_required()
+def list_my_job_applications():
+    user_id = get_jwt_identity()
+    user = User.query.get_or_404(user_id)
+    
+    if user.role != "alumni":
+        return jsonify({"message": "Only alumni can view applicants"}), HTTPStatus.FORBIDDEN
+    
+    # Get applications for jobs I posted
+    applications = db.session.execute(
+        select(JobApplication)
+        .join(Job)
+        .filter(Job.posted_by_id == user_id)
+    ).scalars().all()
+    
+    return jsonify([app.to_dict() for app in applications])
+
+
+@job_bp.put("/applications/<int:application_id>")
+@jwt_required()
+def update_job_application(application_id: int):
+    user_id = get_jwt_identity()
+    user = User.query.get_or_404(user_id)
+    
+    if user.role != "alumni":
+        return jsonify({"message": "Only alumni can update applications"}), HTTPStatus.FORBIDDEN
+    
+    application = JobApplication.query.get_or_404(application_id)
+    
+    # Verify this application is for my job
+    job = Job.query.get(application.job_id)
+    if job.posted_by_id != user_id:
+        return jsonify({"message": "Not authorized"}), HTTPStatus.FORBIDDEN
+    
+    data = request.get_json() or {}
+    status = data.get("status")
+    
+    if status not in ["accepted", "rejected"]:
+        return jsonify({"message": "Invalid status"}), HTTPStatus.BAD_REQUEST
+    
+    application.status = status
+    db.session.commit()
+    
+    return jsonify(application.to_dict())
+
+
 @job_bp.put("/<int:job_id>")
 @jwt_required()
 def update_job(job_id: int):
