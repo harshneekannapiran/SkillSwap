@@ -212,13 +212,43 @@ def update_registration_status(registration_id):
 @event_bp.delete("/<int:event_id>")
 @jwt_required()
 def delete_event(event_id: int):
-    user_id = get_jwt_identity()
-    event = Event.query.get_or_404(event_id)
-    
-    if event.host_id != user_id:
-        return jsonify({"message": "Not allowed"}), HTTPStatus.FORBIDDEN
+    try:
+        user_id = get_jwt_identity()
+        event = Event.query.get_or_404(event_id)
+        
+        print(f"Delete event - User ID: {user_id} (type: {type(user_id)}), Event ID: {event_id}")
+        print(f"Event host_id: {event.host_id} (type: {type(event.host_id)})")
+        print(f"Event data: {event.to_dict()}")
+        
+        # Safe conversion with error handling
+        try:
+            user_id_int = int(user_id) if user_id else None
+            host_id_int = int(event.host_id) if event.host_id else None
+        except (ValueError, TypeError) as e:
+            print(f"Conversion error: {e}")
+            return jsonify({"message": "Invalid user ID format"}), HTTPStatus.BAD_REQUEST
+        
+        # Convert both to integers for comparison
+        if host_id_int != user_id_int:
+            print(f"Access denied: {host_id_int} != {user_id_int}")
+            return jsonify({"message": "Not allowed"}), HTTPStatus.FORBIDDEN
 
-    db.session.delete(event)
-    db.session.commit()
-    return "", HTTPStatus.NO_CONTENT
+        # Delete related records first (event registrations)
+        related_registrations = EventRegistration.query.filter_by(event_id=event_id).all()
+        print(f"Found {len(related_registrations)} related event registrations to delete")
+        
+        for registration in related_registrations:
+            db.session.delete(registration)
+        
+        # Now delete the event
+        db.session.delete(event)
+        db.session.commit()
+        print("Event deleted successfully")
+        return "", HTTPStatus.NO_CONTENT
+        
+    except Exception as e:
+        print(f"Error in delete_event: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"message": f"Server error: {str(e)}"}), HTTPStatus.INTERNAL_SERVER_ERROR
 

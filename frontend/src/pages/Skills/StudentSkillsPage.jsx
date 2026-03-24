@@ -3,6 +3,7 @@ import { apiClient } from '../../services/apiClient.js'
 
 export function StudentSkillsPage() {
   const [skills, setSkills] = useState([])
+  const [requestedSkillIds, setRequestedSkillIds] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
@@ -19,8 +20,21 @@ export function StudentSkillsPage() {
       if (category) params.append('category', category)
       if (level) params.append('level', level)
 
-      const response = await apiClient.get(`/api/skills?${params}`)
-      setSkills(response.data)
+      const [skillsRes, requestsRes] = await Promise.all([
+        apiClient.get(`/api/skills?${params}`),
+        apiClient.get('/api/skills/requests')
+      ])
+      
+      const requestedIds = requestsRes.data.sent?.map(req => req.skill_id) || []
+      
+      // Mark skills with requested status
+      const skillsWithStatus = skillsRes.data.map(skill => ({
+        ...skill,
+        isRequested: requestedIds.includes(skill.id)
+      }))
+      
+      setSkills(skillsWithStatus)
+      setRequestedSkillIds(requestedIds)
     } catch (error) {
       console.error('Failed to fetch skills:', error)
     } finally {
@@ -28,13 +42,24 @@ export function StudentSkillsPage() {
     }
   }
 
-  const handleRequestSkill = async (skillId, skillName) => {
+  const handleRequestSkill = async (skill) => {
+    // Prevent requesting if already requested
+    if (skill.isRequested) {
+      alert('You have already requested this skill! Check your "My Applications" page for status.')
+      return
+    }
+    
     try {
       await apiClient.post('/api/skills/requests', {
-        skill_id: skillId,
-        message: `I would like to learn ${skillName} from your experience.`
+        skill_id: skill.id,
+        message: `I would like to learn ${skill.name} from your experience.`
       })
-      alert(`Skill request for "${skillName}" sent successfully!`)
+      alert(`Skill request for "${skill.name}" sent successfully!`)
+      
+      // Update the skill status in the list
+      setSkills(prev => prev.map(s => 
+        s.id === skill.id ? { ...s, isRequested: true } : s
+      ))
     } catch (error) {
       console.error('Failed to request skill:', error)
       if (error.response?.status === 409) {
@@ -111,12 +136,18 @@ export function StudentSkillsPage() {
                 </div>
                 <span className="text-sm text-text-secondary">{skill.owner_name || 'Alumni'}</span>
               </div>
-              <button
-                onClick={() => handleRequestSkill(skill.id, skill.name)}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
-              >
-                Request to Learn
-              </button>
+              {skill.isRequested ? (
+                <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg cursor-not-allowed opacity-75 text-center font-medium">
+                  Requested
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleRequestSkill(skill)}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                >
+                  Request to Learn
+                </button>
+              )}
             </div>
           </div>
         ))}

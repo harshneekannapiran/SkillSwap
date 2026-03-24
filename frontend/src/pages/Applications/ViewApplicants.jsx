@@ -5,7 +5,8 @@ export function ViewApplicants() {
   const [applicants, setApplicants] = useState({
     jobs: [],
     events: [],
-    mentorships: []
+    mentorships: [],
+    skills: []
   })
   const [loading, setLoading] = useState(true)
 
@@ -24,10 +25,14 @@ export function ViewApplicants() {
       // Fetch mentorship requests sent to me
       const mentorshipRes = await apiClient.get('/api/mentorship/requests')
       
+      // Fetch skill requests for my skills
+      const skillsRes = await apiClient.get('/api/skills/requests')
+      
       setApplicants({
         jobs: jobsRes.data || [],
         events: eventsRes.data || [],
-        mentorships: mentorshipRes.data.received || []
+        mentorships: mentorshipRes.data.received || [],
+        skills: skillsRes.data.received || []
       })
     } catch (error) {
       console.error('Failed to fetch applicants:', error)
@@ -55,6 +60,16 @@ export function ViewApplicants() {
     } catch (error) {
       console.error('Failed to update mentorship request:', error)
       alert('Failed to update request status')
+    }
+  }
+
+  const handleUpdateSkillRequest = async (requestId, status) => {
+    try {
+      await apiClient.put(`/api/skills/requests/${requestId}/${status}`)
+      fetchApplicants()
+    } catch (error) {
+      console.error('Failed to update skill request:', error)
+      alert('Failed to update skill request')
     }
   }
 
@@ -199,6 +214,61 @@ export function ViewApplicants() {
                       </button>
                       <button
                         onClick={() => handleUpdateMentorshipRequest(request.id, 'rejected')}
+                        className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Skill Requests */}
+      <div className="bg-card rounded-lg border border-border p-6">
+        <h2 className="text-xl font-semibold text-text-primary mb-4">Skill Requests</h2>
+        {applicants.skills.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">📚</span>
+            </div>
+            <p className="text-text-secondary">No skill requests yet</p>
+            <p className="text-sm text-text-muted-foreground mt-2">Students will request to learn your skills here</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {applicants.skills.map(skill => (
+              <div key={skill.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                <div className="flex-1">
+                  <p className="font-medium text-text-primary">{skill.requester_name}</p>
+                  <p className="text-sm text-text-secondary">Wants to learn: {skill.skill_name}</p>
+                  {skill.message && (
+                    <p className="text-sm text-text-secondary mt-1">"{skill.message}"</p>
+                  )}
+                  <p className="text-xs text-text-muted-foreground">Requested: {new Date(skill.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    skill.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                    skill.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                    skill.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {skill.status}
+                  </span>
+                  {skill.status === 'pending' && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleUpdateSkillRequest(skill.id, 'accepted')}
+                        className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleUpdateSkillRequest(skill.id, 'rejected')}
                         className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
                       >
                         Reject

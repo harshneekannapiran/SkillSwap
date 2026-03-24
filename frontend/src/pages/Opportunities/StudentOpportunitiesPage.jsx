@@ -3,6 +3,8 @@ import { apiClient } from '../../services/apiClient.js'
 
 export function StudentOpportunitiesPage() {
   const [opportunities, setOpportunities] = useState([])
+  const [appliedJobs, setAppliedJobs] = useState([])
+  const [savedJobs, setSavedJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [location, setLocation] = useState('')
@@ -17,8 +19,25 @@ export function StudentOpportunitiesPage() {
       if (search) params.append('search', search)
       if (location) params.append('location', location)
 
-      const response = await apiClient.get(`/api/jobs?${params}`)
-      setOpportunities(response.data)
+      const [jobsRes, applicationsRes, savedRes] = await Promise.all([
+        apiClient.get(`/api/jobs?${params}`),
+        apiClient.get('/api/jobs/applications'),
+        apiClient.get('/api/jobs/saved')
+      ])
+      
+      const appliedJobIds = applicationsRes.data.map(app => app.job_id)
+      const savedJobIds = savedRes.data.map(saved => saved.job_id)
+      
+      // Mark jobs with applied and saved status
+      const jobsWithStatus = jobsRes.data.map(job => ({
+        ...job,
+        isApplied: appliedJobIds.includes(job.id),
+        isSaved: savedJobIds.includes(job.id)
+      }))
+      
+      setOpportunities(jobsWithStatus)
+      setAppliedJobs(applicationsRes.data)
+      setSavedJobs(savedRes.data)
     } catch (error) {
       console.error('Failed to fetch opportunities:', error)
     } finally {
@@ -26,22 +45,51 @@ export function StudentOpportunitiesPage() {
     }
   }
 
-  const handleApply = async (jobId) => {
+  const handleApply = async (job) => {
+    // Prevent applying if already applied
+    if (job.isApplied) {
+      alert('You have already applied to this job! Check your "My Applications" page to track status.')
+      return
+    }
+    
     try {
-      await apiClient.post('/api/jobs/apply', { job_id: jobId })
+      await apiClient.post('/api/jobs/apply', { 
+        job_id: job.id,
+        cover_letter: "I am interested in this opportunity and would like to learn more.",
+        resume_url: ""
+      })
       alert('Application submitted successfully!')
+      
+      // Update the job status in the list
+      setOpportunities(prev => prev.map(op => 
+        op.id === job.id ? { ...op, isApplied: true } : op
+      ))
     } catch (error) {
       console.error('Failed to apply:', error)
-      alert('Failed to submit application')
+      if (error.response?.status === 409) {
+        alert('You have already applied to this job! Check your "My Applications" page to track status.')
+      } else {
+        alert('Application could not be submitted at this time. Please try again.')
+      }
     }
   }
 
-  const handleSave = async (jobId) => {
+  const handleSave = async (job) => {
     try {
-      // For now, just show an alert - will implement saved jobs later
+      await apiClient.post('/api/jobs/save', { job_id: job.id })
       alert('Job saved successfully!')
+      
+      // Update the job status in the list
+      setOpportunities(prev => prev.map(op => 
+        op.id === job.id ? { ...op, isSaved: true } : op
+      ))
     } catch (error) {
       console.error('Failed to save job:', error)
+      if (error.response?.status === 409) {
+        alert('Job already saved!')
+      } else {
+        alert('Could not save job at this time. Please try again.')
+      }
     }
   }
 
@@ -94,18 +142,30 @@ export function StudentOpportunitiesPage() {
             )}
             
             <div className="flex gap-2">
-              <button
-                onClick={() => handleApply(opportunity.id)}
-                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
-              >
-                Apply
-              </button>
-              <button
-                onClick={() => handleSave(opportunity.id)}
-                className="px-4 py-2 border border-border text-text-primary rounded-lg hover:bg-background transition-colors"
-              >
-                Save
-              </button>
+              {opportunity.isApplied ? (
+                <div className="flex-1 px-4 py-2 bg-green-100 text-green-800 rounded-lg cursor-not-allowed opacity-75 text-center font-medium">
+                  Applied
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleApply(opportunity)}
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                >
+                  Apply
+                </button>
+              )}
+              {opportunity.isSaved ? (
+                <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg cursor-not-allowed opacity-75 text-center font-medium">
+                  Saved
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleSave(opportunity)}
+                  className="px-4 py-2 border border-border text-text-primary rounded-lg hover:bg-background transition-colors"
+                >
+                  Save
+                </button>
+              )}
             </div>
           </div>
         ))}

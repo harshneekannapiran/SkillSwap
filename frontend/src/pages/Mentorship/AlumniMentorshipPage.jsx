@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../../services/apiClient.js'
 
 export function AlumniMentorshipPage() {
   const [requests, setRequests] = useState([])
   const [mentees, setMentees] = useState([])
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
     fetchRequests()
@@ -61,8 +63,11 @@ export function AlumniMentorshipPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-text-primary">Mentorship Requests</h1>
-        <p className="mt-2 text-text-secondary">Manage mentorship requests from students</p>
+        <h1 className="text-3xl font-bold text-text-primary">Mentorship</h1>
+        <p className="mt-2 text-text-secondary">Manage mentorship requests and active mentees</p>
+        <p className="mt-1 text-sm text-text-muted-foreground">
+          View and manage mentorship requests in the "View Applicants" page
+        </p>
       </div>
 
       {/* Stats */}
@@ -90,50 +95,6 @@ export function AlumniMentorshipPage() {
         </div>
       </div>
 
-      {/* Mentorship Requests */}
-      <div className="bg-card rounded-lg border border-border p-6">
-        <h2 className="text-xl font-semibold text-text-primary mb-4">Recent Requests</h2>
-        <div className="space-y-4">
-          {requests.map(request => (
-            <div key={request.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
-                    {request.student_name?.charAt(0) || 'S'}
-                  </div>
-                  <div>
-                    <p className="font-medium text-text-primary">{request.student_name}</p>
-                    <p className="text-sm text-text-secondary">{request.topic}</p>
-                  </div>
-                </div>
-                <p className="text-text-secondary text-sm">{request.message}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(request.status)}`}>
-                  {request.status}
-                </span>
-                {request.status === 'pending' && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleAcceptRequest(request.id)}
-                      className="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
-                    >
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => handleRejectRequest(request.id)}
-                      className="px-3 py-1 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Active Mentees */}
       {mentees.length > 0 && (
         <div className="bg-card rounded-lg border border-border p-6">
@@ -153,7 +114,7 @@ export function AlumniMentorshipPage() {
                 </div>
                 <button
                   className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
-                  onClick={() => alert('Chat feature coming soon!')}
+                  onClick={() => navigate('/chat')}
                 >
                   Chat
                 </button>

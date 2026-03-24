@@ -56,13 +56,28 @@ export function AlumniEventsPage() {
   }
 
   const handleDelete = async (eventId) => {
+    console.log('Attempting to delete event:', eventId)
     if (confirm('Are you sure you want to delete this event?')) {
       try {
-        await apiClient.delete(`/api/events/${eventId}`)
-        fetchEvents()
+        console.log('Sending delete request to:', `/api/events/${eventId}`)
+        const response = await apiClient.delete(`/api/events/${eventId}`)
+        console.log('Delete response:', response)
+        
+        // Immediately update state to remove the deleted event
+        setEvents(prev => prev.filter(event => event.id !== eventId))
+        
+        // Close the dialog
+        setSelectedEvent(null)
+        
+        // Then refresh from server to ensure consistency
+        await fetchEvents()
+        
+        alert('Event deleted successfully!')
       } catch (error) {
         console.error('Failed to delete event:', error)
-        alert('Failed to delete event')
+        console.error('Error response:', error.response?.data)
+        console.error('Error status:', error.response?.status)
+        alert(`Failed to delete event: ${error.response?.data?.message || 'Unknown error'}`)
       }
     }
   }

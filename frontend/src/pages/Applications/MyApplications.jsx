@@ -5,7 +5,9 @@ export function MyApplications() {
   const [applications, setApplications] = useState({
     jobs: [],
     events: [],
-    mentorships: []
+    mentorships: [],
+    savedJobs: [],
+    skills: []
   })
   const [loading, setLoading] = useState(true)
 
@@ -24,10 +26,18 @@ export function MyApplications() {
       // Fetch mentorship requests
       const mentorshipRes = await apiClient.get('/api/mentorship/requests')
       
+      // Fetch saved jobs
+      const savedJobsRes = await apiClient.get('/api/jobs/saved')
+      
+      // Fetch skill requests
+      const skillsRes = await apiClient.get('/api/skills/requests')
+      
       setApplications({
         jobs: jobsRes.data || [],
         events: eventsRes.data || [],
-        mentorships: mentorshipRes.data.sent || []
+        mentorships: mentorshipRes.data.sent || [],
+        savedJobs: savedJobsRes.data || [],
+        skills: skillsRes.data.sent || []
       })
     } catch (error) {
       console.error('Failed to fetch applications:', error)
@@ -52,6 +62,73 @@ export function MyApplications() {
       <div>
         <h1 className="text-3xl font-semibold text-text-primary">My Applications</h1>
         <p className="mt-2 text-text-secondary">Track all your job applications, event registrations, and mentorship requests</p>
+      </div>
+
+      {/* Saved Jobs */}
+      <div className="bg-card rounded-lg border border-border p-6">
+        <h2 className="text-xl font-semibold text-text-primary mb-4">Saved Jobs</h2>
+        {applications.savedJobs.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">🔖</span>
+            </div>
+            <p className="text-text-secondary">No saved jobs yet</p>
+            <p className="text-sm text-text-muted-foreground mt-2">Save interesting opportunities to apply later</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {applications.savedJobs.map(savedJob => (
+              <div key={savedJob.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                <div>
+                  <p className="font-medium text-text-primary">{savedJob.job_title}</p>
+                  <p className="text-sm text-text-secondary">{savedJob.company}</p>
+                  {savedJob.location && <p className="text-sm text-text-secondary">{savedJob.location}</p>}
+                  <p className="text-xs text-text-muted-foreground">Saved: {new Date(savedJob.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="text-right">
+                  <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                    saved
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Skill Requests */}
+      <div className="bg-card rounded-lg border border-border p-6">
+        <h2 className="text-xl font-semibold text-text-primary mb-4">Skill Requests</h2>
+        {applications.skills.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">📚</span>
+            </div>
+            <p className="text-text-secondary">No skill requests yet</p>
+            <p className="text-sm text-text-muted-foreground mt-2">Request skills from alumni to enhance your learning</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {applications.skills.map(skill => (
+              <div key={skill.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                <div>
+                  <p className="font-medium text-text-primary">{skill.skill_name}</p>
+                  <p className="text-sm text-text-secondary">{skill.message}</p>
+                  <p className="text-xs text-text-muted-foreground">Requested: {new Date(skill.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="text-right">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    skill.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                    skill.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {skill.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Job Applications */}

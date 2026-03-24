@@ -140,18 +140,23 @@ def create_skill_request():
 @skill_bp.put("/requests/<int:request_id>/accept")
 @jwt_required()
 def accept_skill_request(request_id):
-  user_id = get_jwt_identity()
-  
-  request_obj = SkillRequest.query.get_or_404(request_id)
-  
-  # Check if user owns the skill
-  if request_obj.skill.owner_id != user_id:
-    return jsonify({"message": "Not allowed"}), HTTPStatus.FORBIDDEN
-  
-  request_obj.status = "accepted"
-  db.session.commit()
-  
-  return jsonify(request_obj.to_dict())
+    user_id = get_jwt_identity()
+    
+    request_obj = SkillRequest.query.get_or_404(request_id)
+    
+    print(f"Accept request - User ID: {user_id}, Request ID: {request_id}")
+    print(f"Request skill owner_id: {request_obj.skill.owner_id}")
+    print(f"Request skill: {request_obj.skill.to_dict() if request_obj.skill else 'None'}")
+    
+    # Convert both to integers for comparison
+    if int(request_obj.skill.owner_id) != int(user_id):
+        print(f"Access denied: {request_obj.skill.owner_id} != {user_id}")
+        return jsonify({"message": "Not allowed"}), HTTPStatus.FORBIDDEN
+    
+    request_obj.status = "accepted"
+    db.session.commit()
+    
+    return jsonify(request_obj.to_dict())
 
 
 @skill_bp.put("/requests/<int:request_id>/reject")
@@ -225,13 +230,42 @@ def update_skill(skill_id: int):
 @skill_bp.delete("/<int:skill_id>")
 @jwt_required()
 def delete_skill(skill_id: int):
-  user_id = get_jwt_identity()
-  skill = Skill.query.get_or_404(skill_id)
-  
-  if skill.owner_id != user_id:
-    return jsonify({"message": "Not allowed"}), HTTPStatus.FORBIDDEN
+    try:
+        user_id = get_jwt_identity()
+        skill = Skill.query.get_or_404(skill_id)
+        
+        print(f"Delete skill - User ID: {user_id} (type: {type(user_id)}), Skill ID: {skill_id}")
+        print(f"Skill owner_id: {skill.owner_id} (type: {type(skill.owner_id)})")
+        print(f"Skill data: {skill.to_dict()}")
+        
+        # Safe conversion with error handling
+        try:
+            user_id_int = int(user_id) if user_id else None
+            owner_id_int = int(skill.owner_id) if skill.owner_id else None
+        except (ValueError, TypeError) as e:
+            print(f"Conversion error: {e}")
+            return jsonify({"message": "Invalid user ID format"}), HTTPStatus.BAD_REQUEST
+        
+        # Convert both to integers for comparison
+        if owner_id_int != user_id_int:
+            print(f"Access denied: {owner_id_int} != {user_id_int}")
+            return jsonify({"message": "Not allowed"}), HTTPStatus.FORBIDDEN
 
-  db.session.delete(skill)
-  db.session.commit()
-  return "", HTTPStatus.NO_CONTENT
-
+        # Delete related records first (skill requests)
+        related_requests = SkillRequest.query.filter_by(skill_id=skill_id).all()
+        print(f"Found {len(related_requests)} related skill requests to delete")
+        
+        for request in related_requests:
+            db.session.delete(request)
+        
+        # Now delete the skill
+        db.session.delete(skill)
+        db.session.commit()
+        print("Skill deleted successfully")
+        return "", HTTPStatus.NO_CONTENT
+        
+    except Exception as e:
+        print(f"Error in delete_skill: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"message": f"Server error: {str(e)}"}), HTTPStatus.INTERNAL_SERVER_ERROR

@@ -44,13 +44,28 @@ export function AlumniOpportunitiesPage() {
   }
 
   const handleDelete = async (jobId) => {
+    console.log('Attempting to delete opportunity:', jobId)
     if (confirm('Are you sure you want to delete this opportunity?')) {
       try {
-        await apiClient.delete(`/api/jobs/${jobId}`)
-        fetchOpportunities()
+        console.log('Sending delete request to:', `/api/jobs/${jobId}`)
+        const response = await apiClient.delete(`/api/jobs/${jobId}`)
+        console.log('Delete response:', response)
+        
+        // Immediately update state to remove the deleted opportunity
+        setOpportunities(prev => prev.filter(opportunity => opportunity.id !== jobId))
+        
+        // Close the dialog
+        setSelectedOpportunity(null)
+        
+        // Then refresh from server to ensure consistency
+        await fetchOpportunities()
+        
+        alert('Opportunity deleted successfully!')
       } catch (error) {
         console.error('Failed to delete opportunity:', error)
-        alert('Failed to delete opportunity')
+        console.error('Error response:', error.response?.data)
+        console.error('Error status:', error.response?.status)
+        alert(`Failed to delete opportunity: ${error.response?.data?.message || 'Unknown error'}`)
       }
     }
   }

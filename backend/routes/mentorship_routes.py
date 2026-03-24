@@ -80,9 +80,20 @@ def create_request():
         user_id = get_jwt_identity()
         data = request.get_json() or {}
         
+        mentor_id = data["mentor_id"]
+        
+        # Check if already requested this mentor
+        existing_request = MentorshipRequest.query.filter_by(
+            student_id=user_id,
+            mentor_id=mentor_id
+        ).first()
+        
+        if existing_request:
+            return jsonify({"message": "Already requested mentorship from this mentor"}), HTTPStatus.CONFLICT
+        
         mentorship_request = MentorshipRequest(
             student_id=user_id,
-            mentor_id=data["mentor_id"],
+            mentor_id=mentor_id,
             topic=data["topic"],
             message=data["message"]
         )

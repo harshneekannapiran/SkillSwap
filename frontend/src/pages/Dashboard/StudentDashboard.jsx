@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { DashboardCard } from '../../components/common/DashboardCard.jsx'
+import { JobApplicationForm } from '../../components/common/JobApplicationForm.jsx'
+import { EventRegistrationForm } from '../../components/common/EventRegistrationForm.jsx'
 import { apiClient } from '../../services/apiClient.js'
 
 export function StudentDashboard() {
@@ -18,6 +20,10 @@ export function StudentDashboard() {
   const [upcomingSessions, setUpcomingSessions] = useState([])
   const [newOpportunities, setNewOpportunities] = useState([])
   const [eventSuggestions, setEventSuggestions] = useState([])
+  const [showJobForm, setShowJobForm] = useState(false)
+  const [showEventForm, setShowEventForm] = useState(false)
+  const [selectedJob, setSelectedJob] = useState(null)
+  const [selectedEvent, setSelectedEvent] = useState(null)
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -50,21 +56,55 @@ export function StudentDashboard() {
 
             // Fetch mentors (recommended)
             try {
-              const mentorsRes = await apiClient.get('/api/mentorship/mentors')
+              const [mentorsRes, mentorshipRes] = await Promise.all([
+                apiClient.get('/api/mentorship/mentors'),
+                apiClient.get('/api/mentorship/requests')
+              ])
               console.log('Mentors response:', mentorsRes.status, mentorsRes.data)
-              const mentors = mentorsRes.data.slice(0, 3) // Top 3 recommendations
+              console.log('Mentorship requests response:', mentorshipRes.status, mentorshipRes.data)
+              
+              const allMentors = mentorsRes.data.slice(0, 3) // Top 3 recommendations
+              const requestedMentorIds = mentorshipRes.data.sent?.map(req => req.mentor_id) || []
+              
+              // Mark mentors with requested status
+              const mentors = allMentors.map(mentor => ({
+                ...mentor,
+                isRequested: requestedMentorIds.includes(mentor.id)
+              }))
+              
+              console.log('Mentors with status:', mentors)
 
               // Fetch opportunities
               try {
                 const jobsRes = await apiClient.get('/api/jobs')
                 console.log('Jobs response:', jobsRes.status, jobsRes.data)
-                const opportunities = jobsRes.data.slice(0, 5)
+                const allJobs = jobsRes.data.slice(0, 5)
+                
+                // Fetch my applications to check applied status
+                const myApplicationsRes = await apiClient.get('/api/jobs/applications')
+                const appliedJobIds = myApplicationsRes.data.map(app => app.job_id)
+                
+                // Mark jobs with applied status
+                const jobsWithStatus = allJobs.map(job => ({
+                  ...job,
+                  isApplied: appliedJobIds.includes(job.id)
+                }))
 
                 // Fetch events
                 try {
                   const eventsRes = await apiClient.get('/api/events')
                   console.log('Events response:', eventsRes.status, eventsRes.data)
-                  const events = eventsRes.data.slice(0, 3)
+                  const allEvents = eventsRes.data.slice(0, 3)
+                  
+                  // Fetch my registrations to check registered status
+                  const myRegistrationsRes = await apiClient.get('/api/events/registrations')
+                  const registeredEventIds = myRegistrationsRes.data.map(reg => reg.event_id)
+                  
+                  // Mark events with registered status
+                  const eventsWithStatus = allEvents.map(event => ({
+                    ...event,
+                    isRegistered: registeredEventIds.includes(event.id)
+                  }))
 
                   console.log('All data fetched successfully!')
                   console.log('Final stats:', {
@@ -72,8 +112,8 @@ export function StudentDashboard() {
                     skillsRequested,
                     pendingRequests,
                     upcomingSessions: acceptedRequests,
-                    newOpportunities: opportunities.length,
-                    eventSuggestions: events.length
+                    newOpportunities: jobsWithStatus.filter(job => !job.isApplied).length,
+                    eventSuggestions: eventsWithStatus.filter(event => !event.isRegistered).length
                   })
 
                   setStats({
@@ -81,14 +121,14 @@ export function StudentDashboard() {
                     skillsRequested,
                     pendingRequests,
                     upcomingSessions: acceptedRequests,
-                    newOpportunities: opportunities.length,
-                    eventSuggestions: events.length
+                    newOpportunities: jobsWithStatus.filter(job => !job.isApplied).length,
+                    eventSuggestions: eventsWithStatus.filter(event => !event.isRegistered).length
                   })
 
                   setRecommendedMentors(mentors)
                   setUpcomingSessions(acceptedRequests)
-                  setNewOpportunities(opportunities)
-                  setEventSuggestions(events)
+                  setNewOpportunities(jobsWithStatus)
+                  setEventSuggestions(eventsWithStatus)
                 } catch (eventsError) {
                   console.error('Failed to fetch events:', eventsError)
                   console.error('Events error details:', eventsError.response?.data || eventsError.message)
@@ -128,14 +168,21 @@ export function StudentDashboard() {
     fetchStudentData()
   }, [])
 
-  const handleRequestMentorship = async (mentorId) => {
+  const handleRequestMentorship = async (mentor) => {
+    // Prevent requesting if already requested
+    if (mentor.isRequested) {
+      alert('You have already requested mentorship from this mentor! Check your "My Applications" page to track status.')
+      return
+    }
+    
     try {
       await apiClient.post('/api/mentorship/requests', {
-        mentor_id: mentorId,
+        mentor_id: mentor.id,
         topic: 'Career Guidance',
         message: 'I would like to learn from your experience.'
       })
       alert('Mentorship request sent successfully!')
+      
       // Refresh the data without page reload
       const userRaw = localStorage.getItem('skillswap_user')
       const user = userRaw ? JSON.parse(userRaw) : null
@@ -153,20 +200,37 @@ export function StudentDashboard() {
       }))
       
       // Remove the mentor from the recommended list since request was sent
-      setRecommendedMentors(prev => prev.filter(mentor => mentor.id !== mentorId))
+      setRecommendedMentors(prev => prev.map(m => 
+        m.id === mentor.id ? { ...m, isRequested: true } : m
+      ))
     } catch (error) {
       console.error('Failed to request mentorship:', error)
-      alert('Failed to send mentorship request. Please try again.')
+      if (error.response?.status === 409) {
+        alert('You have already requested mentorship from this mentor!')
+      } else {
+        alert('Failed to send mentorship request. Please try again.')
+      }
     }
   }
 
-  const handleApplyToOpportunity = async (jobId) => {
+  const handleApplyToOpportunity = (job) => {
+    // Prevent applying if already applied
+    if (job.isApplied) {
+      alert('You have already applied to this job! Check your "My Applications" page to track status.')
+      return
+    }
+    
+    setSelectedJob(job)
+    setShowJobForm(true)
+  }
+
+  const handleJobApplicationSubmit = async (applicationData) => {
     try {
-      await apiClient.post('/api/jobs/apply', { job_id: jobId })
+      await apiClient.post('/api/jobs/apply', applicationData)
       alert('Application submitted successfully!')
       
       // Remove the job from the list since application was sent
-      setNewOpportunities(prev => prev.filter(opportunity => opportunity.id !== jobId))
+      setNewOpportunities(prev => prev.filter(opportunity => opportunity.id !== applicationData.job_id))
       
       // Update stats
       setStats(prev => ({
@@ -175,17 +239,41 @@ export function StudentDashboard() {
       }))
     } catch (error) {
       console.error('Failed to apply:', error)
-      alert('Failed to submit application. Please try again.')
+      
+      // Show specific error message
+      if (error.response?.status === 409) {
+        const errorMessage = error.response.data?.message || 'Application conflict'
+        if (errorMessage.includes('Already applied')) {
+          alert('You have already applied to this job! Check your "My Applications" page to track status.')
+        } else {
+          alert(`Application note: ${errorMessage}`)
+        }
+      } else {
+        alert('Application could not be submitted at this time. Please try again.')
+      }
+      
+      throw error // Re-throw to let form handle it
     }
   }
 
-  const handleJoinEvent = async (eventId) => {
+  const handleJoinEvent = (event) => {
+    // Prevent registering if already registered
+    if (event.isRegistered) {
+      alert('You are already registered for this event! Check your "My Applications" page for details.')
+      return
+    }
+    
+    setSelectedEvent(event)
+    setShowEventForm(true)
+  }
+
+  const handleEventRegistrationSubmit = async (registrationData) => {
     try {
-      await apiClient.post('/api/events/register', { event_id: eventId })
+      await apiClient.post('/api/events/register', registrationData)
       alert('Successfully registered for event!')
       
       // Remove the event from the list since registration was sent
-      setEventSuggestions(prev => prev.filter(event => event.id !== eventId))
+      setEventSuggestions(prev => prev.filter(event => event.id !== registrationData.event_id))
       
       // Update stats
       setStats(prev => ({
@@ -194,7 +282,22 @@ export function StudentDashboard() {
       }))
     } catch (error) {
       console.error('Failed to join event:', error)
-      alert('Failed to register for event. Please try again.')
+      
+      // Show specific error message
+      if (error.response?.status === 409) {
+        const errorMessage = error.response.data?.message || 'Registration conflict'
+        if (errorMessage.includes('Already registered')) {
+          alert('You are already registered for this event! Check your "My Applications" page for details.')
+        } else if (errorMessage.includes('Event is full')) {
+          alert('This event has reached maximum capacity. Registration is now closed.')
+        } else {
+          alert(`Registration note: ${errorMessage}`)
+        }
+      } else {
+        alert('Registration could not be completed at this time. Please try again.')
+      }
+      
+      throw error // Re-throw to let form handle it
     }
   }
 
@@ -272,17 +375,49 @@ export function StudentDashboard() {
                     <p className="text-sm text-text-secondary">{mentor.company}</p>
                   </div>
                 </div>
+                {mentor.isRequested ? (
+                <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg cursor-not-allowed opacity-75 text-center font-medium">
+                  Requested
+                </div>
+              ) : (
                 <button
-                  onClick={() => handleRequestMentorship(mentor.id)}
+                  onClick={() => handleRequestMentorship(mentor)}
                   className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
                 >
                   Request Mentorship
                 </button>
+              )}
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Upcoming Mentorship Sessions */}
+      {upcomingSessions.length > 0 && (
+        <div className="bg-card rounded-lg border border-border p-6">
+          <h2 className="text-xl font-semibold text-text-primary mb-4">Upcoming Mentorship Sessions</h2>
+          <div className="space-y-4">
+            {upcomingSessions.map(session => (
+              <div key={session.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-green-100 text-green-800 flex items-center justify-center">
+                    {session.mentor_name?.charAt(0) || 'M'}
+                  </div>
+                  <div>
+                    <p className="font-medium text-text-primary">{session.mentor_name}</p>
+                    <p className="text-sm text-text-secondary">{session.topic}</p>
+                    <p className="text-xs text-text-muted-foreground">Accepted: {new Date(session.created_at).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg cursor-not-allowed opacity-75 text-center font-medium">
+                  Session Active
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* New Opportunities */}
       <div className="bg-card rounded-lg border border-border p-6">
@@ -304,12 +439,18 @@ export function StudentDashboard() {
                   <p className="text-sm text-text-secondary">{opportunity.company}</p>
                   <p className="text-sm text-text-secondary">{opportunity.location}</p>
                 </div>
-                <button
-                  onClick={() => handleApplyToOpportunity(opportunity.id)}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
-                >
-                  Apply
-                </button>
+                {opportunity.isApplied ? (
+                  <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg cursor-not-allowed opacity-75 text-center font-medium">
+                    Applied
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleApplyToOpportunity(opportunity)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                  >
+                    Apply
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -336,17 +477,38 @@ export function StudentDashboard() {
                   <p className="text-sm text-text-secondary">{new Date(event.event_time).toLocaleDateString()}</p>
                   <p className="text-sm text-text-secondary">{event.location}</p>
                 </div>
-                <button
-                  onClick={() => handleJoinEvent(event.id)}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
-                >
-                  Join Event
-                </button>
+                {event.isRegistered ? (
+                  <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg cursor-not-allowed opacity-75 text-center font-medium">
+                    Registered
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleJoinEvent(event)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                  >
+                    Join Event
+                  </button>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+      
+      {/* Forms */}
+      <JobApplicationForm
+        job={selectedJob}
+        isOpen={showJobForm}
+        onClose={() => setShowJobForm(false)}
+        onSubmit={handleJobApplicationSubmit}
+      />
+      
+      <EventRegistrationForm
+        event={selectedEvent}
+        isOpen={showEventForm}
+        onClose={() => setShowEventForm(false)}
+        onSubmit={handleEventRegistrationSubmit}
+      />
     </div>
   )
 }

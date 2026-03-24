@@ -3,7 +3,6 @@ import { apiClient } from '../../services/apiClient.js'
 
 export function AlumniSkillsPage() {
   const [skills, setSkills] = useState([])
-  const [skillRequests, setSkillRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [selectedSkill, setSelectedSkill] = useState(null)
@@ -16,7 +15,6 @@ export function AlumniSkillsPage() {
 
   useEffect(() => {
     fetchMySkills()
-    fetchSkillRequests()
   }, [])
 
   const fetchMySkills = async () => {
@@ -27,15 +25,6 @@ export function AlumniSkillsPage() {
       console.error('Failed to fetch skills:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchSkillRequests = async () => {
-    try {
-      const response = await apiClient.get('/api/skills/requests')
-      setSkillRequests(response.data.received || [])
-    } catch (error) {
-      console.error('Failed to fetch skill requests:', error)
     }
   }
 
@@ -53,34 +42,34 @@ export function AlumniSkillsPage() {
   }
 
   const handleDelete = async (skillId) => {
+    // Show current user for debugging
+    const userRaw = localStorage.getItem('skillswap_user')
+    const user = userRaw ? JSON.parse(userRaw) : null
+    console.log('Current user:', user)
+    console.log('Attempting to delete skill:', skillId)
+    
     if (confirm('Are you sure you want to delete this skill?')) {
       try {
-        await apiClient.delete(`/api/skills/${skillId}`)
-        fetchMySkills()
+        console.log('Sending delete request to:', `/api/skills/${skillId}`)
+        const response = await apiClient.delete(`/api/skills/${skillId}`)
+        console.log('Delete response:', response)
+        
+        // Immediately update state to remove the deleted skill
+        setSkills(prev => prev.filter(skill => skill.id !== skillId))
+        
+        // Close the dialog
+        setSelectedSkill(null)
+        
+        // Then refresh from server to ensure consistency
+        await fetchMySkills()
+        
+        alert('Skill deleted successfully!')
       } catch (error) {
         console.error('Failed to delete skill:', error)
-        alert('Failed to delete skill')
+        console.error('Error response:', error.response?.data)
+        console.error('Error status:', error.response?.status)
+        alert(`Failed to delete skill: ${error.response?.data?.message || 'Unknown error'}`)
       }
-    }
-  }
-
-  const handleAcceptRequest = async (requestId) => {
-    try {
-      await apiClient.put(`/api/skills/requests/${requestId}/accept`)
-      fetchSkillRequests()
-    } catch (error) {
-      console.error('Failed to accept request:', error)
-      alert('Failed to accept request')
-    }
-  }
-
-  const handleRejectRequest = async (requestId) => {
-    try {
-      await apiClient.put(`/api/skills/requests/${requestId}/reject`)
-      fetchSkillRequests()
-    } catch (error) {
-      console.error('Failed to reject request:', error)
-      alert('Failed to reject request')
     }
   }
 
@@ -94,6 +83,9 @@ export function AlumniSkillsPage() {
         <div>
           <h1 className="text-3xl font-bold text-text-primary">My Skills</h1>
           <p className="mt-2 text-text-secondary">Manage skills you can teach students</p>
+          <p className="mt-1 text-sm text-text-muted-foreground">
+            View and manage skill requests in the "View Applicants" page
+          </p>
         </div>
         <button
           onClick={() => setShowAddForm(true)}
@@ -102,59 +94,6 @@ export function AlumniSkillsPage() {
           Add New Skill
         </button>
       </div>
-
-      {/* Skill Requests */}
-      {skillRequests.length > 0 && (
-        <div className="bg-card rounded-lg border border-border p-6">
-          <h2 className="text-xl font-semibold text-text-primary mb-4">Skill Requests</h2>
-          <div className="space-y-4">
-            {skillRequests.map(request => (
-              <div key={request.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
-                    {request.requester_name?.charAt(0) || 'S'}
-                  </div>
-                  <div>
-                    <p className="font-medium text-text-primary">{request.requester_name}</p>
-                    <p className="text-sm text-text-secondary">Wants to learn: {request.skill_name}</p>
-                    {request.message && (
-                      <p className="text-sm text-text-secondary mt-1">"{request.message}"</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {request.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => handleAcceptRequest(request.id)}
-                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => handleRejectRequest(request.id)}
-                        className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                  {request.status === 'accepted' && (
-                    <span className="px-4 py-2 bg-green-100 text-green-800 rounded-lg">
-                      Accepted
-                    </span>
-                  )}
-                  {request.status === 'rejected' && (
-                    <span className="px-4 py-2 bg-red-100 text-red-800 rounded-lg">
-                      Rejected
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Add Skill Form */}
       {showAddForm && (

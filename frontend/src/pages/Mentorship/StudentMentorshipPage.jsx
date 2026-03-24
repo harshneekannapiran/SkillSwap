@@ -3,7 +3,7 @@ import { apiClient } from '../../services/apiClient.js'
 
 export function StudentMentorshipPage() {
   const [mentors, setMentors] = useState([])
-  const [requests, setRequests] = useState([])
+  const [requestedMentorIds, setRequestedMentorIds] = useState([])
   const [loading, setLoading] = useState(true)
   const [showRequestForm, setShowRequestForm] = useState(false)
   const [selectedMentor, setSelectedMentor] = useState(null)
@@ -13,9 +13,38 @@ export function StudentMentorshipPage() {
   })
 
   useEffect(() => {
-    fetchMentors()
-    fetchRequests()
+    fetchData()
   }, [])
+
+  const fetchData = async () => {
+    try {
+      const [mentorsRes, requestsRes] = await Promise.all([
+        apiClient.get('/api/mentorship/mentors'),
+        apiClient.get('/api/mentorship/requests')
+      ])
+      
+      console.log('Mentors data:', mentorsRes.data)
+      console.log('Requests data:', requestsRes.data)
+      
+      const requestedIds = requestsRes.data.sent?.map(req => req.mentor_id) || []
+      console.log('Requested mentor IDs:', requestedIds)
+      
+      // Mark mentors with requested status
+      const mentorsWithStatus = mentorsRes.data.map(mentor => ({
+        ...mentor,
+        isRequested: requestedIds.includes(mentor.id)
+      }))
+      
+      console.log('Mentors with status:', mentorsWithStatus)
+      
+      setMentors(mentorsWithStatus)
+      setRequestedMentorIds(requestedIds)
+    } catch (error) {
+      console.error('Failed to fetch data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchMentors = async () => {
     try {
@@ -29,15 +58,25 @@ export function StudentMentorshipPage() {
   const fetchRequests = async () => {
     try {
       const response = await apiClient.get('/api/mentorship/requests')
-      setRequests(response.data.sent || [])
+      setRequestedMentorIds(response.data.sent?.map(req => req.mentor_id) || [])
     } catch (error) {
       console.error('Failed to fetch requests:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
   const handleRequestMentorship = async (mentor) => {
+    // Prevent requesting if already requested
+    if (mentor.isRequested) {
+      alert('You have already requested mentorship from this mentor! Check your "My Applications" page to track status.')
+      return
+    }
+    
+    // Double-check by looking at requested mentor IDs
+    if (requestedMentorIds.includes(mentor.id)) {
+      alert('You have already requested mentorship from this mentor! Check your "My Applications" page to track status.')
+      return
+    }
+    
     setSelectedMentor(mentor)
     setShowRequestForm(true)
   }
@@ -53,11 +92,18 @@ export function StudentMentorshipPage() {
       setShowRequestForm(false)
       setFormData({ topic: '', message: '' })
       setSelectedMentor(null)
-      fetchRequests()
+      
+      // Refresh the full data to update mentor status
+      await fetchData()
+      
       alert('Mentorship request sent successfully!')
     } catch (error) {
       console.error('Failed to send request:', error)
-      alert('Failed to send mentorship request')
+      if (error.response?.status === 409) {
+        alert('You have already requested mentorship from this mentor!')
+      } else {
+        alert('Failed to send mentorship request')
+      }
     }
   }
 
@@ -79,30 +125,10 @@ export function StudentMentorshipPage() {
       <div>
         <h1 className="text-3xl font-bold text-text-primary">Find Mentors</h1>
         <p className="mt-2 text-text-secondary">Connect with experienced alumni for guidance and mentorship</p>
+        <p className="mt-1 text-sm text-text-muted-foreground">
+          Track your mentorship requests in the "My Applications" page
+        </p>
       </div>
-
-      {/* Mentorship Requests Status */}
-      {requests.length > 0 && (
-        <div className="bg-card rounded-lg border border-border p-6">
-          <h2 className="text-xl font-semibold text-text-primary mb-4">Your Mentorship Requests</h2>
-          <div className="space-y-4">
-            {requests.map(request => (
-              <div key={request.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                <div>
-                  <p className="font-medium text-text-primary">{request.topic}</p>
-                  <p className="text-sm text-text-secondary">{request.message}</p>
-                  <p className="text-xs text-text-secondary mt-1">
-                    Sent: {new Date(request.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(request.status)}`}>
-                  {request.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Available Mentors */}
       <div>
@@ -132,12 +158,18 @@ export function StudentMentorshipPage() {
                 </div>
               )}
               
-              <button
-                onClick={() => handleRequestMentorship(mentor)}
-                className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
-              >
-                Request Mentorship
-              </button>
+              {mentor.isRequested ? (
+                <div className="w-full px-4 py-2 bg-green-100 text-green-800 rounded-lg cursor-not-allowed opacity-75 text-center font-medium">
+                  Requested
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleRequestMentorship(mentor)}
+                  className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                >
+                  Request Mentorship
+                </button>
+              )}
             </div>
           ))}
         </div>

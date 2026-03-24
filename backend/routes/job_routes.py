@@ -8,6 +8,7 @@ from . import job_bp
 from models import db
 from models.job import Job
 from models.job_application import JobApplication
+from models.saved_job import SavedJob
 from models.user import User
 
 
@@ -216,13 +217,101 @@ def update_application_status(application_id):
 @job_bp.delete("/<int:job_id>")
 @jwt_required()
 def delete_job(job_id: int):
-    user_id = get_jwt_identity()
-    job = Job.query.get_or_404(job_id)
-    
-    if job.posted_by_id != user_id:
-        return jsonify({"message": "Not allowed"}), HTTPStatus.FORBIDDEN
+    try:
+        user_id = get_jwt_identity()
+        job = Job.query.get_or_404(job_id)
+        
+        print(f"Delete job - User ID: {user_id} (type: {type(user_id)}), Job ID: {job_id}")
+        print(f"Job posted_by_id: {job.posted_by_id} (type: {type(job.posted_by_id)})")
+        print(f"Job data: {job.to_dict()}")
+        
+        # Safe conversion with error handling
+        try:
+            user_id_int = int(user_id) if user_id else None
+            posted_by_int = int(job.posted_by_id) if job.posted_by_id else None
+        except (ValueError, TypeError) as e:
+            print(f"Conversion error: {e}")
+            return jsonify({"message": "Invalid user ID format"}), HTTPStatus.BAD_REQUEST
+        
+        # Convert both to integers for comparison
+        if posted_by_int != user_id_int:
+            print(f"Access denied: {posted_by_int} != {user_id_int}")
+            return jsonify({"message": "Not allowed"}), HTTPStatus.FORBIDDEN
 
-    db.session.delete(job)
+        # Delete related records first (job applications)
+        related_applications = JobApplication.query.filter_by(job_id=job_id).all()
+        print(f"Found {len(related_applications)} related applications to delete")
+        
+        for application in related_applications:
+            db.session.delete(application)
+        
+        # Delete related saved jobs
+        related_saved_jobs = SavedJob.query.filter_by(job_id=job_id).all()
+        print(f"Found {len(related_saved_jobs)} related saved jobs to delete")
+        
+        for saved_job in related_saved_jobs:
+            db.session.delete(saved_job)
+        
+        # Now delete the job
+        db.session.delete(job)
+        db.session.commit()
+        print("Job deleted successfully")
+        return "", HTTPStatus.NO_CONTENT
+        
+    except Exception as e:
+        print(f"Error in delete_job: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"message": f"Server error: {str(e)}"}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@job_bp.get("/saved")
+@jwt_required()
+def list_saved_jobs():
+    user_id = get_jwt_identity()
+    saved_jobs = SavedJob.query.filter_by(user_id=user_id).order_by(SavedJob.created_at.desc()).all()
+    return jsonify([saved.to_dict() for saved in saved_jobs])
+
+
+@job_bp.post("/save")
+@jwt_required()
+def save_job():
+    user_id = get_jwt_identity()
+    data = request.get_json() or {}
+    job_id = data.get("job_id")
+    
+    if not job_id:
+        return jsonify({"message": "job_id is required"}), HTTPStatus.BAD_REQUEST
+
+    # Check if job exists
+    job = Job.query.get(job_id)
+    if not job:
+        return jsonify({"message": "Job not found"}), HTTPStatus.NOT_FOUND
+
+    # Check if already saved
+    existing_saved = SavedJob.query.filter_by(user_id=user_id, job_id=job_id).first()
+    if existing_saved:
+        return jsonify({"message": "Job already saved"}), HTTPStatus.CONFLICT
+
+    # Save job
+    saved_job = SavedJob(user_id=user_id, job_id=job_id)
+    db.session.add(saved_job)
     db.session.commit()
-    return "", HTTPStatus.NO_CONTENT
+
+    return jsonify(saved_job.to_dict()), HTTPStatus.CREATED
+
+
+@job_bp.delete("/save/<int:job_id>")
+@jwt_required()
+def unsave_job(job_id):
+    user_id = get_jwt_identity()
+    
+    saved_job = SavedJob.query.filter_by(user_id=user_id, job_id=job_id).first()
+    if not saved_job:
+        return jsonify({"message": "Saved job not found"}), HTTPStatus.NOT_FOUND
+
+    db.session.delete(saved_job)
+    db.session.commit()
+
+    return jsonify({"message": "Job unsaved successfully"})
 

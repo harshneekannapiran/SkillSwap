@@ -3,6 +3,7 @@ import { apiClient } from '../../services/apiClient.js'
 
 export function StudentEventsPage() {
   const [events, setEvents] = useState([])
+  const [registeredEvents, setRegisteredEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [eventType, setEventType] = useState('')
   const [search, setSearch] = useState('')
@@ -17,8 +18,21 @@ export function StudentEventsPage() {
       if (eventType) params.append('event_type', eventType)
       if (search) params.append('search', search)
 
-      const response = await apiClient.get(`/api/events?${params}`)
-      setEvents(response.data)
+      const [eventsRes, registrationsRes] = await Promise.all([
+        apiClient.get(`/api/events?${params}`),
+        apiClient.get('/api/events/registrations')
+      ])
+      
+      const registeredEventIds = registrationsRes.data.map(reg => reg.event_id)
+      
+      // Mark events with registered status
+      const eventsWithStatus = eventsRes.data.map(event => ({
+        ...event,
+        isRegistered: registeredEventIds.includes(event.id)
+      }))
+      
+      setEvents(eventsWithStatus)
+      setRegisteredEvents(registrationsRes.data)
     } catch (error) {
       console.error('Failed to fetch events:', error)
     } finally {
@@ -26,13 +40,38 @@ export function StudentEventsPage() {
     }
   }
 
-  const handleRegister = async (eventId) => {
+  const handleRegister = async (event) => {
+    // Prevent registering if already registered
+    if (event.isRegistered) {
+      alert('You are already registered for this event! Check your "My Applications" page for details.')
+      return
+    }
+    
     try {
-      await apiClient.post('/api/events/register', { event_id: eventId })
+      await apiClient.post('/api/events/register', { 
+        event_id: event.id,
+        notes: "Looking forward to attending this event!"
+      })
       alert('Successfully registered for event!')
+      
+      // Update the event status in the list
+      setEvents(prev => prev.map(ev => 
+        ev.id === event.id ? { ...ev, isRegistered: true } : ev
+      ))
     } catch (error) {
       console.error('Failed to register for event:', error)
-      alert('Failed to register for event')
+      if (error.response?.status === 409) {
+        const errorMessage = error.response.data?.message || 'Registration conflict'
+        if (errorMessage.includes('Already registered')) {
+          alert('You are already registered for this event! Check your "My Applications" page for details.')
+        } else if (errorMessage.includes('Event is full')) {
+          alert('This event has reached maximum capacity. Registration is now closed.')
+        } else {
+          alert(`Registration note: ${errorMessage}`)
+        }
+      } else {
+        alert('Registration could not be completed at this time. Please try again.')
+      }
     }
   }
 
@@ -103,12 +142,18 @@ export function StudentEventsPage() {
               )}
             </div>
             
-            <button
-              onClick={() => handleRegister(event.id)}
-              className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
-            >
-              Register
-            </button>
+            {event.isRegistered ? (
+              <div className="w-full px-4 py-2 bg-green-100 text-green-800 rounded-lg cursor-not-allowed opacity-75 text-center font-medium">
+                Registered
+              </div>
+            ) : (
+              <button
+                onClick={() => handleRegister(event)}
+                className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors"
+              >
+                Register
+              </button>
+            )}
           </div>
         ))}
       </div>
