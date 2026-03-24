@@ -15,6 +15,7 @@ from routes import (
     event_bp,
     interest_bp,
     endorsement_bp,
+    forum_bp,
 )
 
 
@@ -72,6 +73,7 @@ def create_app():
     app.register_blueprint(event_bp)
     app.register_blueprint(interest_bp)
     app.register_blueprint(endorsement_bp)
+    app.register_blueprint(forum_bp)
 
     @app.get("/health")
     def health_check():

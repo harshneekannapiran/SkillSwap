@@ -15,6 +15,8 @@ import { OpportunitiesPage } from './pages/Opportunities/OpportunitiesPage.jsx'
 import { EventsPage } from './pages/Events/EventsPage.jsx'
 import { MyApplications } from './pages/Applications/MyApplications.jsx'
 import { ViewApplicants } from './pages/Applications/ViewApplicants.jsx'
+import DiscussionForum from './pages/Forum/DiscussionForum.jsx'
+import ForumPostDetail from './pages/Forum/ForumPostDetail.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -33,6 +35,8 @@ createRoot(document.getElementById('root')).render(
             <Route path="events" element={<EventsPage />} />
             <Route path="my-applications" element={<MyApplications />} />
             <Route path="view-applicants" element={<ViewApplicants />} />
+            <Route path="forum" element={<DiscussionForum />} />
+            <Route path="forum/:postId" element={<ForumPostDetail />} />
           </Route>
         </Routes>
       </ThemeProvider>

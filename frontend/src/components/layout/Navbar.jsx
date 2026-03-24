@@ -180,6 +180,14 @@ export function Navbar() {
           >
             Events
           </NavLink>
+          <NavLink
+            to="/forum"
+            className={({ isActive }) =>
+              `${navLinkBase} ${isActive ? 'text-primary' : ''}`
+            }
+          >
+            Forum
+          </NavLink>
         </nav>
 
         {/* Right - Theme Toggle and Profile */}
