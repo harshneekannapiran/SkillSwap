@@ -244,6 +244,23 @@ export function Navbar() {
                     >
                       View Profile
                     </Link>
+                    {user?.role === 'student' ? (
+                      <Link
+                        to="/my-mentor"
+                        className="block w-full text-left px-3 py-2 text-sm text-text-secondary hover:text-primary hover:bg-background rounded-lg transition-colors"
+                        onClick={() => setShowProfile(false)}
+                      >
+                        My Mentor
+                      </Link>
+                    ) : user?.role === 'alumni' ? (
+                      <Link
+                        to="/my-students"
+                        className="block w-full text-left px-3 py-2 text-sm text-text-secondary hover:text-primary hover:bg-background rounded-lg transition-colors"
+                        onClick={() => setShowProfile(false)}
+                      >
+                        My Students
+                      </Link>
+                    ) : null}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"

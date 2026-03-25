@@ -17,6 +17,7 @@ from . import auth_routes  # noqa: E402,F401
 from . import user_routes  # noqa: E402,F401
 from . import skill_routes  # noqa: E402,F401
 from . import mentorship_routes  # noqa: E402,F401
+from . import mentorship_relationship_routes  # noqa: E402,F401
 from . import chat_routes  # noqa: E402,F401
 from . import job_routes  # noqa: E402,F401
 from . import event_routes  # noqa: E402,F401

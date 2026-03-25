@@ -17,6 +17,8 @@ import { MyApplications } from './pages/Applications/MyApplications.jsx'
 import { ViewApplicants } from './pages/Applications/ViewApplicants.jsx'
 import DiscussionForum from './pages/Forum/DiscussionForum.jsx'
 import ForumPostDetail from './pages/Forum/ForumPostDetail.jsx'
+import MyMentor from './pages/Mentorship/MyMentor.jsx'
+import MyStudents from './pages/Mentorship/MyStudents.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -29,6 +31,8 @@ createRoot(document.getElementById('root')).render(
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="skills" element={<SkillMarketplacePage />} />
             <Route path="mentorship" element={<MentorshipPage />} />
+            <Route path="my-mentor" element={<MyMentor />} />
+            <Route path="my-students" element={<MyStudents />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="opportunities" element={<OpportunitiesPage />} />
