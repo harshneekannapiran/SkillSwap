@@ -4,14 +4,14 @@ import os
 class Config:
     """Base configuration."""
 
-    SECRET_KEY = os.environ.get("SKILLSWAP_SECRET_KEY", "dev-secret-key")
+    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
     SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "SKILLSWAP_DATABASE_URI",
-        "mysql+mysqlconnector://root:Harsh%4021@localhost/skillswap_new?ssl_disabled=true",
+        "DATABASE_URL",
+        "mysql+pymysql://root:Harsh%4021@localhost/skillswap_new?ssl_disabled=true",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    JWT_SECRET_KEY = os.environ.get("SKILLSWAP_JWT_SECRET_KEY", "dev-jwt-secret")
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret")
     JWT_TOKEN_LOCATION = ["headers"]
     JWT_ACCESS_TOKEN_EXPIRES = 60 * 60 * 24  # 1 day
 
